@@ -54,13 +54,13 @@ data:
             subject: '{{ "{{" }} template "email.subject" . {{ "}}" }}'
     - name: "pai-user"
       email_configs:
-        - to: '{{ "{{" }} template "email.debug.start.user" . {{ "}}" }}, binyli@microsoft.com, paidri@microsoft.com'
+        - to: '{{ "{{" }} template "email.debug.start.user" . {{ "}}" }}, binyli@microsoft.com'
           send_resolved: false
           html: '{{ "{{" }} template "email.user.html" . {{ "}}" }}'
           headers:
             subject: User Job Low Efficiency Notice
             To: '{{ "{{" }} template "email.debug.start.user" . {{ "}}" }}'
-            CC: 'binyli@microsoft.com, paidri@microsoft.com'
+            CC: 'binyli@microsoft.com'
     - name: "pai-debug"
       email_configs:
         - to: '{{ "{{" }} template "email.debug.start.user" . {{ "}}" }}, binyli@microsoft.com'
