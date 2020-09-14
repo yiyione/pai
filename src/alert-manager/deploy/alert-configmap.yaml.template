@@ -47,7 +47,7 @@ data:
             subject: '{{ cluster_cfg["cluster"]["common"]["cluster-id"] }}: {{ "{{" }} template "__subject" . {{ "}}" }}'
     - name: "pai-notice"
       email_configs:
-        - to: 'binyli@microsoft.com, paidri@microsoft.com'
+        - to: 'binyli@microsoft.com, pai-utilization@microsoft.com'
           send_resolved: false
           html: '{{ "{{" }} template "email.notice.html" . {{ "}}" }}'
           headers:
