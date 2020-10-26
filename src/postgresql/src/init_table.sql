@@ -1,2 +1,1 @@
-CREATE TABLE job(name VARCHAR(20), create_date DATE);
-
+/* This init script will be run every time when the database container is started. */

@@ -44,6 +44,14 @@ class serivce_management_start:
             self.service_list = service_management_configuration.get_service_list(self.cluster_type)
         else:
             self.service_list = service_list
+        if self.cluster_type == 'yarn':
+            user_input = raw_input(
+                "Cluster type `yarn` is not well tested. We recommend you to use `k8s` version or " +
+                "stick to 0.14.0 if you prefer yarn version. " +
+                "If you still want to continue, please input Y. " +
+                "Other inputs will stop installation immediately: ")
+            if user_input != "Y":
+                sys.exit(1)
         self.logger.info("Get the service-list to manage : {0}".format(str(self.service_list)))
 
         self.retry_times = 5
@@ -70,8 +78,6 @@ class serivce_management_start:
         if dependency_list != None:
             for fat_serv in dependency_list:
                 if fat_serv not in self.service_list:
-                    continue
-                if fat_serv in self.done_dict and self.done_dict[fat_serv] == True:
                     continue
                 self.start(fat_serv)
 
@@ -119,7 +125,5 @@ class serivce_management_start:
             if file_handler.file_exist_or_not("src/{0}/deploy/service.yaml".format(serv)) == False:
                 self.logger.warning("service.yaml can't be found on the directory of {0}".format(serv))
                 self.logger.warning("Please check your source code. The {0}'s service will be skipped.".format(serv))
-                continue
-            if serv in self.done_dict and self.done_dict[serv] == True:
                 continue
             self.start(serv)

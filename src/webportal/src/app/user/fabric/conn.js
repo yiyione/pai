@@ -1,24 +1,32 @@
-// Copyright (c) Microsoft Corporation
-// All rights reserved.
-//
-// MIT License
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-// documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
-// to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-// BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+import { PAIV2 } from '@microsoft/openpai-js-sdk';
 import cookies from 'js-cookie';
 import config from '../../config/webportal.config';
 import { checkToken } from '../user-auth/user-auth.component';
 import { clearToken } from '../user-logout/user-logout.component';
+import { getDeshuttleStorageDetails } from '../../job-submission/utils/utils';
+
+const client = new PAIV2.OpenPAIClient({
+  rest_server_uri: new URL(config.restServerUri, window.location.href),
+  username: cookies.get('user'),
+  token: checkToken(),
+  https: window.location.protocol === 'https:',
+});
+
+const wrapper = async func => {
+  try {
+    return await func();
+  } catch (err) {
+    if (err.data.code === 'UnauthorizedUserError') {
+      alert(err.data.message);
+      clearToken();
+    } else {
+      throw new Error(err.data.message);
+    }
+  }
+};
 
 const fetchWrapper = async (...args) => {
   const res = await fetch(...args);
@@ -130,7 +138,12 @@ export const updateUserAdminRequest = async (username, admin) => {
 
 export const getAllVcsRequest = async () => {
   const url = `${config.restServerUri}/api/v2/virtual-clusters`;
-  return fetchWrapper(url);
+  const token = checkToken();
+  return fetchWrapper(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 };
 
 export const getUserRequest = async username => {
@@ -144,56 +157,54 @@ export const getUserRequest = async username => {
 };
 
 export const getTokenRequest = async () => {
-  const url = `${config.restServerUri}/api/v1/token`;
-  const token = checkToken();
-  return fetchWrapper(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  return wrapper(() => client.token.getTokens());
+};
+
+export const getGroupsRequest = async () => {
+  return wrapper(() => client.group.getAllGroup());
 };
 
 export const revokeTokenRequest = async token => {
-  const url = `${config.restServerUri}/api/v1/token/${token}`;
-  const currentToken = checkToken();
-  await fetchWrapper(url, {
-    method: 'DELETE',
-    headers: {
-      Authorization: `Bearer ${currentToken}`,
-    },
-  });
+  await wrapper(() => client.token.deleteToken(token));
   if (token === checkToken()) {
     clearToken();
   }
 };
 
-export const createApplicationTokenRequest = async () => {
-  const url = `${config.restServerUri}/api/v1/token/application`;
-  const currentToken = checkToken();
-  await fetchWrapper(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${currentToken}`,
-    },
-  });
-};
+export const createApplicationTokenRequest = () =>
+  client.token.createApplicationToken();
 
-export const listStorageConfigRequest = async () => {
-  const url = `${config.restServerUri}/api/v2/storage/config`;
-  const token = checkToken();
-  return fetchWrapper(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-};
+export const listStorageDetailRequest = async () => {
+  return wrapper(async () => {
+    const storageSummary = await client.storage.getStorages();
+    const details = [];
+    const token = checkToken();
+    for (const storage of storageSummary.storages) {
+      const detail = await client.storage.getStorage(storage.name);
+      if (detail.type === 'dshuttle') {
+        const res = await fetch('dshuttle/api/v1/master/info', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (
+            detail.data.dshuttlePath &&
+            json.mountPoints[detail.data.dshuttlePath]
+          ) {
+            detail.data = {
+              ...detail.data,
+              ...getDeshuttleStorageDetails(
+                json.mountPoints[detail.data.dshuttlePath],
+              ),
+            };
+          }
+        }
+      }
 
-export const listStorageServerRequest = async () => {
-  const url = `${config.restServerUri}/api/v2/storage/server`;
-  const token = checkToken();
-  return fetchWrapper(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+      details.push(detail);
+    }
+    return details;
   });
 };

@@ -15,44 +15,72 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
 // module dependencies
 const express = require('express');
+const limiter = require('@pai/config/rate-limit');
 const token = require('@pai/middlewares/token');
 const controller = require('@pai/controllers/v2/job');
+const taskController = require('@pai/controllers/v2/task');
 const protocol = require('@pai/middlewares/v2/protocol');
 const jobAttemptRouter = require('@pai/routes/v2/job-attempt.js');
 
-
 const router = new express.Router();
 
-router.route('/')
+router
+  .route('/')
   /** GET /api/v2/jobs - List job */
-  .get(controller.list)
+  .get(token.check, limiter.listJob, controller.list)
   /** POST /api/v2/jobs - Update job */
-  .post(
-    token.check,
-    protocol.submit,
-    controller.update
-  );
+  .post(token.check, limiter.submitJob, protocol.submit, controller.update);
 
-router.route('/:frameworkName')
+router
+  .route('/:frameworkName')
   /** GET /api/v2/jobs/:frameworkName - Get job */
-  .get(controller.get);
+  .get(token.check, controller.get);
 
-router.route('/:frameworkName/executionType')
+router
+  .route('/:frameworkName/attempts/:jobAttemptId')
+  /** GET /api/v2/jobs/:frameworkName/attempts/:jobAttemptId - Get job with specific attempt */
+  .get(token.check, controller.get);
+
+router
+  .route(
+    '/:frameworkName/attempts/:jobAttemptId/taskRoles/:taskRoleName/taskIndex/:taskIndex/attempts',
+  )
+  /** GET /api/v2/jobs/frameworkName/attempts/:jobAttemptId/taskRoles/:taskRoleName/taskIndex/:taskIndex/attempts - get certain task retry */
+  .get(token.check, taskController.get);
+
+router
+  .route('/:frameworkName/executionType')
   /** PUT /api/v2/jobs/:frameworkName/executionType - Start or stop job */
   .put(token.check, controller.execute);
 
-router.route('/:frameworkName/config')
+router
+  .route('/:frameworkName/config')
   /** GET /api/v2/jobs/:frameworkName/config - Get job config */
-  .get(controller.getConfig);
+  .get(token.check, controller.getConfig);
 
-router.route('/:frameworkName/ssh')
+router
+  .route('/:frameworkName/ssh')
   /** GET /api/v2/jobs/:frameworkName/ssh - Get job ssh info */
-  .get(controller.getSshInfo);
+  .get(token.check, controller.getSshInfo);
 
 router.use('/:frameworkName/job-attempts', jobAttemptRouter);
+
+router
+  .route('/:frameworkName/tag')
+  /** PUT /api/v2/jobs/:frameworkName/tag - Add a framework tag */
+  .put(token.check, protocol.validateTag, controller.addTag);
+
+router
+  .route('/:frameworkName/tag')
+  /** DELETE /api/v2/jobs/:frameworkName/tag - Delete a framework tag */
+  .delete(token.check, controller.deleteTag);
+
+router
+  .route('/:frameworkName/events')
+  /** GET /api/v2/jobs/:frameworkName/events - Get events of a framework */
+  .get(token.check, controller.getEvents);
 
 // module exports
 module.exports = router;

@@ -20,7 +20,7 @@
 #
 #  common:
 #    cluster-id: pai
-#    cluster-type: yarn
+#    cluster-type: k8s
 #
 #    # HDFS, zookeeper data path on your cluster machine.
 #    data-path: "/datastorage"
@@ -63,26 +63,6 @@
 #    # Must be lower case, e.g., regsecret.
 #    secret-name: regsecret
 
-#Uncomment following lines if you want to customize yarn
-#hadoop-resource-manager:
-#  # job log retain time
-#  yarn_log_retain_seconds: 2592000
-#  # port for yarn exporter
-#  yarn_exporter_port: 9459
-
-
-#Uncomment following lines if you want to customize hdfs
-#hadoop-data-node:
-#  # storage path for hdfs, support comma-delimited list of directories, eg. /path/to/folder1,/path/to/folder2 ...
-#  # if left empty, will use cluster.common.data-path/hdfs/data
-#  storage_path:
-
-
-
-#Uncomment following if you want to change customize yarn-frameworklauncher
-#yarn-frameworklauncher:
-#  frameworklauncher-port: 9086
-
 #Uncomment following and config it if you want to use hivedscheduler
 #Check ../../docs/hivedscheduler/devops.md to config it.
 #hivedscheduler:
@@ -112,17 +92,6 @@ rest-server:
 # grafana:
 #   port: 3000
 
-# uncomment following if you want to change customize drivers
-#drivers:
-#  set-nvidia-runtime: false
-#  # You can set drivers version here. If this value is miss, default value will be 384.111
-#  # Current supported version list
-#  # 384.111
-#  # 390.25
-#  # 410.73
-#  # 418.56
-#  version: "384.111"
-
 # uncomment following if you want to customize device plugin
 # device-plugin:
 #   devices:
@@ -134,19 +103,25 @@ rest-server:
 # node-exporter:
 #   port: 9100
 
-# if you want to enable alert manager to send alert email, uncomment following lines and fill
+# if you want to enable alert manager to send alert email to admin, uncomment following lines and fill
 # the right values.
 # alert-manager:
-#   receiver: your_addr@example.com
-#   smtp_url: smtp.office365.com:587
-#   smtp_from: alert_sender@example.com
-#   smtp_auth_username: alert_sender@example.com
-#   smtp_auth_password: password_for_alert_sender
-#   port: 9093 # this is optional, you should not write this if you do not want to change the port alert-manager is listening on
+#   port: 9093 # optional, do not modify this if you do not want to change the port alert-manager is listening on
+#   alert-handler: # alert-handler will only be enabled when this field is not empty
+#     port: 9095 # optional, do not modify this if you do not want to change the port alert-handler is listening on
+#     log-level: "info" # optional
+#     pai-bearer-token: 'your-application-token-for-pai-rest-server' # required if you want to send email to job users
+#     email-configs: # email-notification will only be enabled when this field is not empty
+#       admin-receiver: addr-of-admin-receiver@example.com
+#       smtp-host: smtp.office365.com
+#       smtp-port: 587
+#       smtp-from: alert-sender@example.com
+#       smtp-auth-username: alert-sender@example.com
+#       smtp-auth-password: password-for-alert-sender
 
 # uncomment following if you want to change customize prometheus
 # prometheus:
-#   port: 9091
+#   port: 9091 # optional, do not modify this if you do not want to change the port prometheus is listening on
 #   # How frequently to scrape targets
 #   scrape_interval: 30
 

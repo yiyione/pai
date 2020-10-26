@@ -15,10 +15,9 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
 // module dependencies
 const Ajv = require('ajv');
-const ajv = new Ajv({allErrors: true, useDefaults: true});
+const ajv = new Ajv({ allErrors: true, useDefaults: true });
 
 // hived schema
 const hivedSchema = {
@@ -38,11 +37,11 @@ const hivedSchema = {
                 '^[A-Za-z0-9._~]+$': {
                   type: 'object',
                   properties: {
-                    gpuType: {
+                    skuType: {
                       type: ['string', 'null'],
                       default: null,
                     },
-                    reservationId: {
+                    pinnedCellId: {
                       type: ['string', 'null'],
                       default: null,
                     },
@@ -51,7 +50,7 @@ const hivedSchema = {
                       default: null,
                     },
                   },
-                  additionalProperties: false,
+                  additionalProperties: true,
                 },
               },
               minProperties: 1,
@@ -67,7 +66,6 @@ const hivedSchema = {
 };
 
 const hivedValidate = ajv.compile(hivedSchema);
-
 
 // module exports
 module.exports = {

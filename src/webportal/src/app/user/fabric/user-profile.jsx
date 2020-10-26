@@ -1,19 +1,5 @@
-// Copyright (c) Microsoft Corporation
-// All rights reserved.
-//
-// MIT License
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-// documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
-// to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-// BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 import c from 'classnames';
 import React, { useEffect, useState, useCallback } from 'react';
@@ -33,8 +19,8 @@ import {
   revokeTokenRequest,
   updateUserPasswordRequest,
   updateUserEmailRequest,
-  listStorageServerRequest,
-  listStorageConfigRequest,
+  listStorageDetailRequest,
+  getGroupsRequest,
 } from './conn';
 
 import t from '../../components/tachyons.scss';
@@ -72,8 +58,8 @@ const UserProfile = () => {
   const [userInfo, setUserInfo] = useState(null);
   const [virtualClusters, setVirtualClusters] = useState(null);
   const [tokens, setTokens] = useState(null);
-  const [storageConfigs, setStorageConfigs] = useState(null);
-  const [storageServers, setStorageServers] = useState(null);
+  const [storageDetails, setStorageDetails] = useState(null);
+  const [groups, setGroups] = useState(null);
 
   const [processing, setProcessing] = useState(false);
 
@@ -82,14 +68,14 @@ const UserProfile = () => {
       const userPromise = getUserRequest(cookies.get('user'));
       const vcPromise = getAllVcsRequest();
       const tokenPromise = getTokenRequest();
-      const storageConfigPromise = listStorageConfigRequest();
-      const storageServerPromise = listStorageServerRequest();
+      const storageDetailPromise = listStorageDetailRequest();
+      const groupsPromise = getGroupsRequest();
       await Promise.all([
         userPromise,
         vcPromise,
         tokenPromise,
-        storageConfigPromise,
-        storageServerPromise,
+        storageDetailPromise,
+        groupsPromise,
       ]).catch(err => {
         alert(err);
         throw err;
@@ -111,22 +97,20 @@ const UserProfile = () => {
       const tokens = (await tokenPromise).tokens;
       setTokens(tokens);
       // storage
-      const storageConfigs = await storageConfigPromise;
-      const storageServers = await storageServerPromise;
-      setStorageConfigs(
-        storageConfigs.filter(
-          x =>
-            userInfo.storageConfig && userInfo.storageConfig.includes(x.name),
-        ),
-      );
-      setStorageServers(storageServers);
+      const storageDetails = await storageDetailPromise;
+      setStorageDetails(storageDetails);
       setLoading(false);
+      // group
+      const groups = await groupsPromise;
+      setGroups(groups);
     };
     fetchData();
   }, []);
 
   const onEditProfile = useCallback(async ({ email }) => {
     await updateUserEmailRequest(userInfo.username, email);
+    const newUserInfo = await getUserRequest(cookies.get('user'));
+    setUserInfo(newUserInfo);
   });
 
   const onEditPassword = useCallback(async ({ oldPassword, newPassword }) => {
@@ -181,13 +165,13 @@ const UserProfile = () => {
             <TokenList tokens={tokens} onRevoke={onRevokeToken} />
           </UserProfileCard>
           <UserProfileCard title='Storage'>
-            <StorageList
-              storageConfigs={storageConfigs}
-              storageServers={storageServers}
-            />
+            <StorageList storageDetails={storageDetails} />
           </UserProfileCard>
           <UserProfileCard title='Virtual Clusters'>
-            <VirtualClusterDetailsList virtualClusters={virtualClusters} />
+            <VirtualClusterDetailsList
+              virtualClusters={virtualClusters}
+              groups={groups}
+            />
           </UserProfileCard>
         </div>
       </div>

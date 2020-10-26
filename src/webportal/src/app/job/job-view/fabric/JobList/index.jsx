@@ -1,21 +1,9 @@
-// Copyright (c) Microsoft Corporation
-// All rights reserved.
-//
-// MIT License
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-// documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
-// to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-// BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
+import { PAIV2 } from '@microsoft/openpai-js-sdk';
 import * as querystring from 'querystring';
+import urljoin from 'url-join';
 
 import React, {
   useState,
@@ -24,7 +12,7 @@ import React, {
   useEffect,
   useRef,
 } from 'react';
-import { debounce, isEmpty, isNil } from 'lodash';
+import { debounce, isEmpty } from 'lodash';
 
 import { ColorClassNames, getTheme } from '@uifabric/styling';
 import { Fabric } from 'office-ui-fabric-react/lib/Fabric';
@@ -45,6 +33,7 @@ import TopBar from './TopBar';
 import webportalConfig from '../../../../config/webportal.config';
 import { clearToken } from '../../../../user/user-logout/user-logout.component';
 import userAuth from '../../../../user/user-auth/user-auth.component';
+import { SpinnerLoading } from '../../../../components/loading';
 
 export default function JobList() {
   const admin = userAuth.checkAdmin();
@@ -56,7 +45,7 @@ export default function JobList() {
 
   const initialFilter = useMemo(() => {
     const query = querystring.parse(location.search.replace(/^\?/, ''));
-    if (['vcName', 'status', 'user'].some(x => !isEmpty(query[x]))) {
+    if (['vcName', 'status', 'user', 'keyword'].some(x => !isEmpty(query[x]))) {
       const queryFilter = new Filter();
       if (query.vcName) {
         queryFilter.virtualClusters = new Set([query.vcName]);
@@ -67,6 +56,9 @@ export default function JobList() {
       if (query.user) {
         queryFilter.users = new Set([query.user]);
       }
+      if (query.keyword) {
+        queryFilter.keyword = query.user;
+      }
       return queryFilter;
     } else {
       const initialFilterUsers =
@@ -76,66 +68,132 @@ export default function JobList() {
       return filter;
     }
   });
-  const [filter, setFilter] = useState(initialFilter);
-  const [ordering, setOrdering] = useState(new Ordering());
-  const [pagination, setPagination] = useState(new Pagination());
-  const [filteredJobs, setFilteredJobs] = useState(null);
 
-  useEffect(() => filter.save(), [filter]);
+  const initialOrdering = useMemo(() => {
+    const query = querystring.parse(location.search.replace(/^\?/, ''));
+    if (!isEmpty(query.field)) {
+      const res = new Ordering(query.field, query.descending);
+      res.save();
+      return res;
+    } else {
+      const res = new Ordering();
+      res.load();
+      return res;
+    }
+  });
+
+  const initialPagination = useMemo(() => {
+    const query = querystring.parse(location.search.replace(/^\?/, ''));
+    if (!isEmpty(query.pageIndex) || !isEmpty(query.itemsPerPage)) {
+      const res = new Pagination(
+        query.itemsPerPage,
+        query.pageIndex > 0 ? query.pageIndex - 1 : 0,
+      );
+      res.save();
+      return res;
+    } else {
+      const res = new Pagination();
+      res.load();
+      return res;
+    }
+  });
+
+  const [filter, setFilter] = useState(initialFilter);
+  const [ordering, setOrdering] = useState(initialOrdering);
+  const [pagination, setPagination] = useState(initialPagination);
+  const [filteredJobsInfo, setFilteredJobsInfo] = useState({
+    totalCount: 0,
+    data: [],
+  });
+  const [loading, setLoading] = useState(false);
+
+  const updateFilteredJobsInfo = (filter, ordering, pagination) => {
+    if (!loading) {
+      setLoading(true);
+      getJobs({
+        ...filter.apply(),
+        ...ordering.apply(),
+        ...pagination.apply(),
+        ...{ withTotalCount: true },
+      })
+        .then(data => {
+          setFilteredJobsInfo(data);
+          setLoading(false);
+        })
+        .catch(err => {
+          alert(err.data.message || err.message);
+          setLoading(false);
+          throw Error(err.data.message || err.message);
+        });
+    }
+  };
 
   const { current: applyFilter } = useRef(
-    debounce((allJobs, /** @type {Filter} */ filter) => {
-      if (isNil(allJobs)) {
-        setFilteredJobs(null);
-      } else {
-        setFilteredJobs(filter.apply(allJobs));
-      }
+    debounce((/** @type {Filter} */ filter) => {
+      pagination.load();
+      ordering.load();
+      updateFilteredJobsInfo(filter, ordering, pagination);
     }, 200),
   );
 
   useEffect(() => {
-    applyFilter(allJobs, filter);
-  }, [applyFilter, allJobs, filter]);
+    applyFilter(filter);
+  }, [applyFilter, filter]);
+
+  const { current: applyPagination } = useRef(
+    debounce((/** @type {Pagination} */ pagination) => {
+      filter.load();
+      ordering.load();
+      updateFilteredJobsInfo(filter, ordering, pagination);
+    }, 200),
+  );
 
   useEffect(() => {
-    setPagination(new Pagination(pagination.itemsPerPage, 0));
-  }, [filteredJobs]);
+    applyPagination(pagination);
+  }, [applyPagination, pagination]);
+
+  const { current: applyOrdering } = useRef(
+    debounce((/** @type {Ordering} */ ordering) => {
+      filter.load();
+      pagination.load();
+      updateFilteredJobsInfo(filter, ordering, pagination);
+    }, 200),
+  );
+
+  useEffect(() => {
+    applyOrdering(ordering);
+  }, [applyOrdering, ordering]);
 
   const stopJob = useCallback(
     (...jobs) => {
       userAuth.checkToken(token => {
         jobs.forEach(job => {
           const { name, username } = job;
-          fetch(
-            `${webportalConfig.restServerUri}/api/v1/jobs/${username}~${name}/executionType`,
-            {
-              method: 'PUT',
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ value: 'STOP' }),
-            },
-          )
-            .then(response => {
-              if (response.ok) {
-                job.executionType = 'STOP';
-                delete job._statusText;
-                delete job._statusIndex;
-                setAllJobs(allJobs.slice());
-              } else {
-                return response.json().then(data => {
-                  if (data.code === 'UnauthorizedUserError') {
-                    alert(data.message);
-                    clearToken();
-                  } else {
-                    throw new Error(data.message);
-                  }
-                });
-              }
+          const client = new PAIV2.OpenPAIClient({
+            rest_server_uri: new URL(
+              webportalConfig.restServerUri,
+              window.location.href,
+            ),
+            username: username,
+            token: token,
+            https: window.location.protocol === 'https:',
+          });
+          client.job
+            .updateJobExecutionType(username, name, 'STOP')
+            .then(() => {
+              job.executionType = 'STOP';
+              delete job._statusText;
+              delete job._statusIndex;
+              setAllJobs(allJobs.slice());
             })
-            .catch(reason => {
-              setError(reason.message);
+            .catch(err => {
+              if (err.data.code === 'UnauthorizedUserError') {
+                alert(err.data.message);
+                clearToken();
+              } else {
+                alert(err.data.message || err.message);
+                throw new Error(err.data.message || err.message);
+              }
             });
         });
       });
@@ -143,28 +201,62 @@ export default function JobList() {
     [allJobs],
   );
 
+  const getJobs = async query => {
+    const token = userAuth.checkToken();
+    const client = new PAIV2.OpenPAIClient({
+      rest_server_uri: new URL(
+        webportalConfig.restServerUri,
+        window.location.href,
+      ),
+      username: username,
+      token: token,
+      https: window.location.protocol === 'https:',
+    });
+
+    const url = urljoin(client.cluster.rest_server_uri, '/api/v2/jobs');
+
+    try {
+      return await client.httpClient.get(url, undefined, undefined, query);
+    } catch (err) {
+      alert(err.data.message || err.message);
+      throw Error(err.data.message || err.message);
+    }
+  };
+
   const refreshJobs = useCallback(function refreshJobs() {
-    setAllJobs(null);
-    fetch(`${webportalConfig.restServerUri}/api/v1/jobs`)
-      .then(response => {
-        if (!response.ok) {
-          throw Error(response.message);
-        } else {
-          return response.json();
-        }
+    setFilteredJobsInfo({ totalCount: 0, data: null, pageIndex: 0 });
+    if (!loading) {
+      setLoading(true);
+      filter.load();
+      ordering.load();
+      pagination.load();
+
+      getJobs({
+        ...filter.apply(),
+        ...ordering.apply(),
+        ...pagination.apply(),
+        ...{ withTotalCount: true },
       })
-      .then(setAllJobs)
-      .catch(reason => {
-        setError(reason.message);
-      });
+        .then(data => {
+          setFilteredJobsInfo(data);
+          setLoading(false);
+        })
+        .catch(err => {
+          alert(err.data.message || err.message);
+          setLoading(false);
+          throw Error(err.data.message || err.message);
+        });
+    }
   }, []);
 
+  useEffect(() => filter.save(), [filter]);
+  useEffect(() => ordering.save(), [ordering]);
   useEffect(refreshJobs, []);
 
   const context = {
-    allJobs,
+    getJobs,
+    filteredJobsInfo,
     refreshJobs,
-    filteredJobs,
     selectedJobs,
     setSelectedJobs,
     stopJob,
@@ -175,6 +267,7 @@ export default function JobList() {
     setOrdering,
     pagination,
     setPagination,
+    loading,
   };
 
   const { spacing } = getTheme();
@@ -220,6 +313,7 @@ export default function JobList() {
             }}
           >
             <Table />
+            {loading && <SpinnerLoading />}
           </Stack.Item>
           <Stack.Item
             styles={{

@@ -19,9 +19,11 @@
 const Joi = require('joi');
 
 // define the input schema for the 'update user extension' api
-const userExtensionUpdateInputSchema = Joi.object().keys({
-  extension: Joi.object().pattern(/\w+/, Joi.required()),
-}).required();
+const userExtensionUpdateInputSchema = Joi.object()
+  .keys({
+    extension: Joi.object().pattern(/\w+/, Joi.required()),
+  })
+  .required();
 
 // define the input schema for the 'update user virtualCluster' api
 const userVirtualClusterUpdateInputSchema = Joi.object().keys({
@@ -61,30 +63,96 @@ const userCreateInputSchema = Joi.object().keys({
   username: Joi.string()
     .regex(/^[\w.-]+$/, 'username')
     .required(),
-  email: Joi.string()
-    .email()
-    .empty(''),
-  virtualCluster: Joi.array()
-    .items(Joi.string())
-    .default([]),
-  admin: Joi.boolean()
-    .default(false),
-  password: Joi.string()
-    .min(6)
-    .required(),
-  extension: Joi.object()
-    .pattern(/\w+/, Joi.required())
-    .default(),
+  email: Joi.string().email().empty(''),
+  virtualCluster: Joi.array().items(Joi.string()).default([]),
+  admin: Joi.boolean().default(false),
+  password: Joi.string().min(6).required(),
+  extension: Joi.object().pattern(/\w+/, Joi.required()).default(),
+});
+
+// define the input schema for the 'update user' api in basic mode for admin user
+const basicAdminUserUpdateInputSchema = Joi.object().keys({
+  patch: Joi.boolean().default(false),
+  data: Joi.object()
+    .keys({
+      username: Joi.string()
+        .regex(/^[\w.-]+$/, 'username')
+        .required(),
+      email: Joi.string().email(),
+      virtualCluster: Joi.array().items(Joi.string()),
+      admin: Joi.boolean(),
+      password: Joi.string().min(6),
+      extension: Joi.object().pattern(/\w+/, Joi.required()),
+    })
+    .when('patch', {
+      is: true,
+      then: Joi.object({
+        email: Joi.empty(null),
+        virtualCluster: Joi.empty(null),
+        admin: Joi.empty(null),
+        password: Joi.empty(null),
+        extension: Joi.empty(null),
+      }),
+      otherwise: Joi.object({
+        email: Joi.required(),
+        virtualCluster: Joi.required(),
+        admin: Joi.required(),
+        password: Joi.required(),
+        extension: Joi.required(),
+      }),
+    }),
+});
+
+// define the input schema for the 'update user' api in basic mode for all user
+const basicUserUpdateInputSchema = Joi.object().keys({
+  patch: Joi.boolean().default(false),
+  data: Joi.object()
+    .keys({
+      username: Joi.string()
+        .regex(/^[\w.-]+$/, 'username')
+        .required(),
+      email: Joi.string().email(),
+      newPassword: Joi.string().min(6),
+      oldPassword: Joi.string().min(6).when('newPassword', {
+        is: Joi.exist(),
+        then: Joi.required(),
+      }),
+    })
+    .when('patch', {
+      is: true,
+      then: Joi.object({
+        email: Joi.empty(null),
+        newPassword: Joi.empty(null),
+      }),
+      otherwise: Joi.object({
+        email: Joi.required(),
+        newPassword: Joi.required(),
+      }),
+    }),
+});
+
+// define the input schema for the 'update user' api in oidc mode
+const oidcAdminUserUpdateInputSchema = Joi.object().keys({
+  data: Joi.object().keys({
+    username: Joi.string()
+      .regex(/^[\w.-]+$/, 'username')
+      .required(),
+    extension: Joi.object().pattern(/\w+/, Joi.required()).default(),
+  }),
+  patch: Joi.boolean().default(false),
 });
 
 // module exports
 module.exports = {
+  userCreateInputSchema,
+  basicAdminUserUpdateInputSchema,
+  basicUserUpdateInputSchema,
+  oidcAdminUserUpdateInputSchema,
   userExtensionUpdateInputSchema,
   userVirtualClusterUpdateInputSchema,
   userGrouplistUpdateInputSchema,
   userPasswordUpdateInputSchema,
   userEmailUpdateInputSchema,
-  userCreateInputSchema,
   userAdminPermissionUpdateInputSchema,
   addOrRemoveGroupInputSchema,
 };

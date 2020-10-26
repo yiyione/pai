@@ -15,15 +15,7 @@
 # DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-FROM node:carbon
-
-RUN apt-get update && \
-    apt-get install --assume-yes --no-install-recommends \
-      dos2unix \
-      openssh-server \
-      && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+FROM node:dubnium
 
 WORKDIR /usr/src/app
 
@@ -35,8 +27,6 @@ COPY . .
 RUN yarn --no-git-tag-version --new-version version \
     "$(cat version/PAI.VERSION)"
 RUN yarn install
-
-RUN dos2unix src/templates/*
 
 EXPOSE ${SERVER_PORT}
 

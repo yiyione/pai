@@ -1,27 +1,5 @@
-/*
- * Copyright (c) Microsoft Corporation
- * All rights reserved.
- *
- * MIT License
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the 'Software'), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Fabric, Stack, StackItem } from 'office-ui-fabric-react';
@@ -34,9 +12,10 @@ import { TaskRoles } from './components/task-roles';
 import Context from './components/context';
 import {
   fetchJobConfig,
+  listHivedSkuTypes,
   listUserVirtualClusters,
   listUserStorageConfigs,
-  fetchStorageConfigs,
+  fetchStorageDetails,
 } from './utils/conn';
 import { TaskRolesManager } from './utils/task-roles-manager';
 
@@ -119,6 +98,7 @@ export const JobSubmissionPage = ({
 
   // Context variables
   const [vcNames, setVcNames] = useState([]);
+  const [hivedSkuTypes, setHivedSkuTypes] = useState({});
   const [errorMessages, setErrorMessages] = useState({});
 
   const setJobTaskRoles = useCallback(
@@ -191,10 +171,11 @@ export const JobSubmissionPage = ({
   const contextValue = useMemo(
     () => ({
       vcNames,
+      hivedSkuTypes,
       errorMessages,
       setErrorMessage,
     }),
-    [vcNames, errorMessages, setErrorMessage],
+    [vcNames, hivedSkuTypes, errorMessages, setErrorMessage],
   );
 
   useEffect(() => {
@@ -219,12 +200,13 @@ export const JobSubmissionPage = ({
 
   // init extras
   useEffect(() => {
-    // for import and clone, will respect original protocol
+    // for import, localstorage or clone, will respect original protocol
     const params = new URLSearchParams(window.location.search);
     if (
       config.launcherType !== 'k8s' ||
       !isEmpty(yamlText) ||
-      params.get('op') === 'resubmit'
+      params.get('op') === 'resubmit' ||
+      !isNil(window.localStorage.getItem('marketItem'))
     ) {
       return;
     }
@@ -246,10 +228,10 @@ export const JobSubmissionPage = ({
       const defaultStorageConfig = [];
       try {
         const configNames = await listUserStorageConfigs(loginUser);
-        const storageConfigs = await fetchStorageConfigs(configNames);
-        for (const config of storageConfigs) {
-          if (config.default === true) {
-            defaultStorageConfig.push(config.name);
+        const storageDetails = await fetchStorageDetails(configNames);
+        for (const detail of storageDetails) {
+          if (detail.default === true) {
+            defaultStorageConfig.push(detail.name);
             break;
           }
         }
@@ -269,7 +251,7 @@ export const JobSubmissionPage = ({
     setExtrasValue();
   }, []);
 
-  // fill protocol if cloned job
+  // fill protocol if cloned job or local storage
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('op') === 'resubmit' && !isEmpty(vcNames)) {
@@ -298,7 +280,27 @@ export const JobSubmissionPage = ({
           })
           .catch(alert);
       }
-    } else if (params.get('op') !== 'resubmit') {
+    } else if (!isNil(window.localStorage.getItem('marketItem'))) {
+      const jobConfig = JSON.parse(localStorage.getItem('marketItem'));
+      localStorage.removeItem('marketItem');
+      const [
+        jobInfo,
+        taskRoles,
+        parameters,
+        ,
+        extras,
+      ] = getJobComponentsFromConfig(jobConfig, { vcNames });
+      jobInfo.name = generateJobName(jobInfo.name);
+      if (get(jobConfig, 'extras.submitFrom')) {
+        delete jobConfig.extras.submitFrom;
+      }
+      setJobProtocol(new JobProtocol(jobConfig));
+      setJobTaskRoles(taskRoles);
+      setParameters(parameters);
+      setJobInformation(jobInfo);
+      setExtras(extras);
+      setLoading(false);
+    } else {
       setLoading(false);
     }
   }, [vcNames]);
@@ -345,6 +347,14 @@ export const JobSubmissionPage = ({
       })
       .catch(alert);
   }, []);
+
+  useEffect(() => {
+    listHivedSkuTypes(jobInformation.virtualCluster)
+      .then(hivedSkuTypes => {
+        setHivedSkuTypes(hivedSkuTypes);
+      })
+      .catch(alert);
+  }, [jobInformation.virtualCluster]);
 
   const onToggleAdvanceFlag = useCallback(() => {
     setAdvanceFlag(!advanceFlag);

@@ -148,7 +148,8 @@ kubelet_custom_flags:
 # kube_feature_gates: []
 
 ## Support custom flags to be passed to kubelet only on nodes, not masters
-# kubelet_node_custom_flags: []
+kubelet_node_custom_flags:
+  - "--node-labels=pai-worker=true"
 
 k8s_image_pull_policy: Always
 
@@ -244,6 +245,9 @@ kube_apiserver_cpu_requests: 1000m
 
 kube_kubeadm_controller_extra_args:
   v: 2
+  kube-api-qps: 200
+  kube-api-burst: 300
+  concurrent-gc-syncs: 500
   large-cluster-size-threshold: 0
   secondary-node-eviction-rate: 0.05
 
@@ -378,10 +382,32 @@ kube_image_repo: "{{ env['cfg']['kube_image_repo'] }}"
 quay_image_repo: "{{ env['cfg']['quay_image_repo'] }}"
 {%- endif %}
 
+{%- if 'etcd_image_repo' in env['cfg'] %}
+etcd_image_repo: "{{ env['cfg']['etcd_image_repo'] }}"
+{%- endif %}
+
+{%- if 'pod_infra_image_repo' in env['cfg'] %}
+pod_infra_image_repo: "{{ env['cfg']['pod_infra_image_repo'] }}"
+{%- endif %}
+
 {%- if 'docker_image_repo' in env['cfg'] %}
 docker_image_repo: "{{ env['cfg']['docker_image_repo'] }}"
 {%- endif %}
 
+{%- if 'kubeadm_download_url' in env['cfg'] %}
+kubeadm_download_url: "{{ env['cfg']['kubeadm_download_url'] }}"
+{%- endif %}
+
+{%- if 'hyperkube_download_url' in env['cfg'] %}
+hyperkube_download_url: "{{ env['cfg']['hyperkube_download_url'] }}"
+{%- endif %}
+
 # Choose network plugin (cilium, calico, contiv, weave or flannel. Use cni for generic cni plugin)
 # Can also be set to 'cloud', which lets the cloud provider setup appropriate routing
-kube_network_plugin: {{ env["cfg"]['openpai_kube_network_plugin'] | default('weave') }}
+kube_network_plugin: {{ env["cfg"]['openpai_kube_network_plugin'] | default('calico') }}
+
+{%- if 'openpai_kubespray_extra_var' in env['cfg'] %}
+{% for key in env['cfg']['openpai_kubespray_extra_var'] %}
+{{ key }}: "{{ env['cfg']['openpai_kubespray_extra_var'][key] }}"
+{% endfor %}
+{%- endif %}

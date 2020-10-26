@@ -15,210 +15,68 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
 // module dependencies
 const Joi = require('joi');
 
-
-// define yarn launcher config schema
-const yarnLauncherConfigSchema = Joi.object().keys({
-  hdfsUri: Joi.string()
-    .uri()
-    .required(),
-  webhdfsUri: Joi.string()
-    .uri()
-    .required(),
-  webserviceUri: Joi.string()
-    .uri()
-    .required(),
-  healthCheckPath: Joi.func()
-    .arity(0)
-    .required(),
-  frameworksPath: Joi.func()
-    .arity(0)
-    .required(),
-  frameworkPath: Joi.func()
-    .arity(1)
-    .required(),
-  frameworkStatusPath: Joi.func()
-    .arity(1)
-    .required(),
-  frameworkAggregatedStatusPath: Joi.func()
-    .arity(1)
-    .required(),
-  frameworkRequestPath: Joi.func()
-    .arity(1)
-    .required(),
-  frameworkExecutionTypePath: Joi.func()
-    .arity(1)
-    .required(),
-  frameworkInfoWebhdfsPath: Joi.func()
-    .arity(1)
-    .required(),
-  webserviceRequestHeaders: Joi.func()
-    .arity(1)
-    .required(),
-  jobRootDir: Joi.string()
-    .default('./frameworklauncher'),
-  jobDirCleanUpIntervalSecond: Joi.number()
-    .integer()
-    .min(30 * 60)
-    .default(120 * 60),
-  jobConfigFileName: Joi.string()
-    .default('JobConfig.json'),
-  frameworkDescriptionFilename: Joi.string()
-    .default('FrameworkDescription.json'),
-  amResource: Joi.object().keys({
-    cpuNumber: Joi.number()
-      .integer()
-      .min(1)
-      .default(1),
-    memoryMB: Joi.number()
-      .integer()
-      .min(1024)
-      .default(4096),
-    diskType: Joi.number()
-      .integer()
-      .default(0),
-    diskMB: Joi.number()
-      .integer()
-      .min(0)
-      .default(0),
-  }),
-}).required();
-
 // define k8s launcher config schema
-const k8sLauncherConfigSchema = Joi.object().keys({
-  hivedWebserviceUri: Joi.string()
-    .uri()
-    .required(),
-  enabledPriorityClass: Joi.boolean()
-    .required(),
-  apiVersion: Joi.string()
-    .required(),
-  podGracefulDeletionTimeoutSec: Joi.number()
-    .integer()
-    .default(30 * 60),
-  scheduler: Joi.string()
-    .required(),
-  enabledHived: Joi.boolean()
-    .required(),
-  hivedSpecPath: Joi.string()
-    .required(),
-  runtimeImage: Joi.string()
-    .required(),
-  runtimeImagePullSecrets: Joi.string()
-    .required(),
-  requestHeaders: Joi.object(),
-  healthCheckPath: Joi.func()
-    .arity(0)
-    .required(),
-  frameworksPath: Joi.func()
-    .arity(0)
-    .required(),
-  frameworkPath: Joi.func()
-    .arity(1)
-    .required(),
-  priorityClassesPath: Joi.func()
-    .arity(0)
-    .required(),
-  priorityClassPath: Joi.func()
-    .arity(1)
-    .required(),
-  secretsPath: Joi.func()
-    .arity(0)
-    .required(),
-  secretPath: Joi.func()
-    .arity(1)
-    .required(),
-  podPath: Joi.func()
-    .arity(1)
-    .required(),
-}).required();
+const k8sLauncherConfigSchema = Joi.object()
+  .keys({
+    hivedWebserviceUri: Joi.string().uri().required(),
+    enabledPriorityClass: Joi.boolean().required(),
+    apiVersion: Joi.string().required(),
+    podGracefulDeletionTimeoutSec: Joi.number()
+      .integer()
+      .default(30 * 60),
+    scheduler: Joi.string().required(),
+    enabledHived: Joi.boolean().required(),
+    hivedSpecPath: Joi.string().required(),
+    runtimeImage: Joi.string().required(),
+    runtimeImagePullSecrets: Joi.string().required(),
+    requestHeaders: Joi.object(),
+    sqlConnectionString: Joi.string().required(),
+    sqlMaxConnection: Joi.number().integer().required(),
+    enabledJobHistory: Joi.boolean().required(),
+    writeMergerUrl: Joi.string().required(),
+    healthCheckPath: Joi.func().arity(0).required(),
+    frameworksPath: Joi.func().arity(0).required(),
+    frameworkPath: Joi.func().arity(1).required(),
+    priorityClassesPath: Joi.func().arity(0).required(),
+    priorityClassPath: Joi.func().arity(1).required(),
+    secretsPath: Joi.func().arity(0).required(),
+    secretPath: Joi.func().arity(1).required(),
+    podPath: Joi.func().arity(1).required(),
+  })
+  .required();
 
 let launcherConfig;
 const launcherType = process.env.LAUNCHER_TYPE;
-if (launcherType === 'yarn') {
-  // get config from environment variables
-  launcherConfig = {
-    hdfsUri: process.env.HDFS_URI,
-    webhdfsUri: process.env.WEBHDFS_URI,
-    webserviceUri: process.env.LAUNCHER_WEBSERVICE_URI,
-    webserviceRequestHeaders: (namespace) => {
-      const headers = {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      };
-
-      if (namespace) {
-        headers['UserName'] = namespace;
-      }
-      return headers;
-    },
-    jobRootDir: './frameworklauncher',
-    jobDirCleanUpIntervalSecond: 7200,
-    jobConfigFileName: 'JobConfig.json',
-    frameworkDescriptionFilename: 'FrameworkDescription.json',
-    amResource: {
-      cpuNumber: 1,
-      memoryMB: 1024,
-      diskType: 0,
-      diskMB: 0,
-    },
-    healthCheckPath: () => {
-      return `${launcherConfig.webserviceUri}/v1`;
-    },
-    frameworksPath: () => {
-      return `${launcherConfig.webserviceUri}/v1/Frameworks`;
-    },
-    frameworkPath: (frameworkName) => {
-      return `${launcherConfig.webserviceUri}/v1/Frameworks/${frameworkName}`;
-    },
-    frameworkStatusPath: (frameworkName) => {
-      return `${launcherConfig.webserviceUri}/v1/Frameworks/${frameworkName}/FrameworkStatus`;
-    },
-    frameworkAggregatedStatusPath: (frameworkName) => {
-      return `${launcherConfig.webserviceUri}/v1/Frameworks/${frameworkName}/AggregatedFrameworkStatus`;
-    },
-    frameworkRequestPath: (frameworkName) => {
-      return `${launcherConfig.webserviceUri}/v1/Frameworks/${frameworkName}/FrameworkRequest`;
-    },
-    frameworkExecutionTypePath: (frameworkName) => {
-      return `${launcherConfig.webserviceUri}/v1/Frameworks/${frameworkName}/ExecutionType`;
-    },
-    frameworkInfoWebhdfsPath: (frameworkName) => {
-      return `${launcherConfig.webhdfsUri}/webhdfs/v1/Launcher/${frameworkName}/FrameworkInfo.json?op=OPEN`;
-    },
-  };
-
-  const {error, value} = Joi.validate(launcherConfig, yarnLauncherConfigSchema);
-  if (error) {
-    throw new Error(`launcher config error\n${error}`);
-  }
-  launcherConfig = value;
-  launcherConfig.type = launcherType;
-} else if (launcherType === 'k8s') {
+if (launcherType === 'k8s') {
   launcherConfig = {
     hivedWebserviceUri: process.env.HIVED_WEBSERVICE_URI,
     enabledPriorityClass: process.env.LAUNCHER_PRIORITY_CLASS === 'true',
     apiVersion: 'frameworkcontroller.microsoft.com/v1',
-    podGracefulDeletionTimeoutSec: 1800,
+    podGracefulDeletionTimeoutSec: 600,
     scheduler: process.env.LAUNCHER_SCHEDULER,
     runtimeImage: process.env.LAUNCHER_RUNTIME_IMAGE,
     runtimeImagePullSecrets: process.env.LAUNCHER_RUNTIME_IMAGE_PULL_SECRETS,
     enabledHived: process.env.LAUNCHER_SCHEDULER === 'hivedscheduler',
-    hivedSpecPath: process.env.HIVED_SPEC_PATH || '/hived-spec/hivedscheduler.yaml',
+    hivedSpecPath:
+      process.env.HIVED_SPEC_PATH || '/hived-spec/hivedscheduler.yaml',
     requestHeaders: {
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'Content-Type': 'application/json',
     },
+    sqlConnectionString: process.env.SQL_CONNECTION_STR || 'unset',
+    sqlMaxConnection: parseInt(process.env.SQL_MAX_CONNECTION),
+    enabledJobHistory: process.env.JOB_HISTORY === 'true',
+    writeMergerUrl: process.env.WRITE_MERGER_URL,
     healthCheckPath: () => {
       return `/apis/${launcherConfig.apiVersion}`;
     },
-    frameworksPath: (namespace='default') => {
+    frameworksPath: (namespace = 'default') => {
       return `/apis/${launcherConfig.apiVersion}/namespaces/${namespace}/frameworks`;
     },
-    frameworkPath: (frameworkName, namespace='default') => {
+    frameworkPath: (frameworkName, namespace = 'default') => {
       return `/apis/${launcherConfig.apiVersion}/namespaces/${namespace}/frameworks/${frameworkName}`;
     },
     priorityClassesPath: () => {
@@ -227,18 +85,21 @@ if (launcherType === 'yarn') {
     priorityClassPath: (priorityClassName) => {
       return `/apis/scheduling.k8s.io/v1/priorityclasses/${priorityClassName}`;
     },
-    secretsPath: (namespace='default') => {
+    secretsPath: (namespace = 'default') => {
       return `/api/v1/namespaces/${namespace}/secrets`;
     },
-    secretPath: (secretName, namespace='default') => {
+    secretPath: (secretName, namespace = 'default') => {
       return `/api/v1/namespaces/${namespace}/secrets/${secretName}`;
     },
-    podPath: (podName, namespace='default') => {
+    podPath: (podName, namespace = 'default') => {
       return `/api/v1/namespaces/${namespace}/pods/${podName}`;
     },
   };
 
-  const {error, value} = Joi.validate(launcherConfig, k8sLauncherConfigSchema);
+  const { error, value } = Joi.validate(
+    launcherConfig,
+    k8sLauncherConfigSchema,
+  );
   if (error) {
     throw new Error(`launcher config error\n${error}`);
   }

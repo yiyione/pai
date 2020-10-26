@@ -94,44 +94,52 @@ data:
       </record>
     </filter>
 
+    # add objectSnapshotTrigger
+    <filter fc-objectsnapshots>
+      @type record_transformer
+      enable_ruby
+      <record>
+        objectSnapshotTrigger "${\
+          if record['logMessage'].include? 'OnFrameworkRetry'
+            'OnFrameworkRetry'
+          elsif record['logMessage'].include? 'OnFrameworkDeletion'
+            'OnFrameworkDeletion'
+          elsif record['logMessage'].include? 'OnTaskRetry'
+            'OnTaskRetry'
+          elsif record['logMessage'].include? 'OnTaskDeletion'
+            'OnTaskDeletion'
+          elsif record['logMessage'].include? 'OnPodDeletion'
+            'OnPodDeletion'
+          else
+            'Unknown'
+          end}"
+      </record>
+    </filter>
+
     # Remove useless keys
     <filter fc-objectsnapshots>
       @type record_transformer
       remove_keys log,time,stream,logSeverity,logPid,logSite
     </filter>
 
-    # Just for debugging
-    <filter fc-objectsnapshots>
-      @type stdout
-      <format>
-        @type json
-      </format>
-    </filter>
+    # # Just for debugging
+    # <filter fc-objectsnapshots>
+    #   @type stdout
+    #   <format>
+    #     @type json
+    #   </format>
+    # </filter>
 
-    # Output to elasticsearch
+    # Output to postgresql
     <match fc-objectsnapshots>
       @type copy
-      # index by kind
       <store>
-        @type elasticsearch_dynamic
-        type_name _doc
-        # elasticsearch_host
-        host {{ cluster_cfg['elasticsearch']['master-ip'] }}
-        # elasticsearch-service_port
-        port 30100
-        index_name ${record['objectSnapshot']['kind']}
-        customize_template {
-          "index_patterns": ["framework", "pod"],
-          "settings": {
-            "number_of_shards": 3,
-            "number_of_replicas": 1,
-            "index.refresh_interval": "1s"
-          },
-          "mappings": {
-            "properties": {
-            }
-          }
-        }
+        @type pgjson
+        host {{ cluster_cfg['postgresql']['host'] }}
+        port {{ cluster_cfg['postgresql']['port'] }}
+        user {{ cluster_cfg['postgresql']['user'] }}
+        password {{ cluster_cfg['postgresql']['passwd'] }}
+        database {{ cluster_cfg['postgresql']['db'] }}
         <buffer>
           @type memory
           flush_mode immediate

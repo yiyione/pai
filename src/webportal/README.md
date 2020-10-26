@@ -31,7 +31,6 @@ To run web portal, the following services should be started:
 - REST Server
 - Prometheus
 - Grafana
-- YARN
 - Kubernetes
 - Other services your feature requires
 
@@ -76,7 +75,7 @@ If you use modern editors like VS Code. It is highly recommends to install [esli
 
 ## Webportal Plugins
 
-Webportal supports custom plugins for extension. Please refer to [plugin doc](https://github.com/microsoft/pai/blob/master/docs/webportal/PLUGINS.md) for more details.
+Webportal supports custom plugins for extension. Please refer to [here](https://openpai.readthedocs.io/en/latest/manual/cluster-admin/how-to-customize-cluster-by-plugins.html) for more details.
 
 ## How to contribute
 

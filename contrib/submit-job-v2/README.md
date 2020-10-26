@@ -8,7 +8,7 @@ This plugin is used to submit PAI job v2 on web portal.
 
 User can upload a job v2 yaml file from disk, choose a job v2 from marketplace, or use the submission form to fill in a job v2 config.
 
-Please refer to [PAI protocol spec](../../docs/pai-job-protocol.yaml) for more details.
+Please refer to [PAI protocol spec](https://github.com/microsoft/openpai-protocol/blob/master/schemas/v2/schema.yaml) for more details.
 
 ## Build
 
@@ -24,7 +24,7 @@ The built files will be located in `dist/`.
 ## Deployment
 
 Put the built plugin files to a static file server that is accessible by the user.
-Read [PLUGINS](../../docs/webportal/PLUGINS.md#publish) for details.
+Read [PLUGINS](https://openpai.readthedocs.io/en/latest/manual/cluster-admin/how-to-customize-cluster-by-plugins.html) for details.
 
 Append the following plugin configuration block to the `webportal.plugins` section of `service-configuration.yaml` file.
 

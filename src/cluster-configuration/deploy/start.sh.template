@@ -25,19 +25,32 @@ pushd $(dirname "$0") > /dev/null
 # Create secret for job ssh keys
 /bin/bash secret-create.sh || exit $?
 
-kubectl apply --overwrite=true -f secret.yaml || exit $?
+cp secret.yaml secret-default.yaml
+sed  -i "s/%NAMESPACE%/default/g" secret-default.yaml
+kubectl apply --overwrite=true -f secret-default.yaml || exit $?
+rm -rf secret-default.yaml
 
+cp secret.yaml secret-system.yaml
+sed  -i "s/%NAMESPACE%/kube-system/g" secret-system.yaml
+kubectl apply --overwrite=true -f secret-system.yaml || exit $?
+rm -rf secret-system.yaml
+
+# Create priorityClass for PAI daemon
+kubectl apply --overwrite=true -f priority-class.yaml || exit $?
+
+(
 # Label all the machines
 {% for host in cluster_cfg['layout']['machine-list'] %}
     {% if 'pai-master' in cluster_cfg['layout']['machine-list'][host] and cluster_cfg['layout']['machine-list'][host]['pai-master'] == 'true' %}
-kubectl label --overwrite=true nodes {{ cluster_cfg['layout']['machine-list'][host]['nodename'] }} pai-master=true || exit $?
+echo kubectl label --overwrite=true nodes {{ cluster_cfg['layout']['machine-list'][host]['nodename'] }} pai-master=true || exit $?
     {% endif %}
     {% if 'pai-worker' in cluster_cfg['layout']['machine-list'][host] and cluster_cfg['layout']['machine-list'][host]['pai-worker'] == 'true' %}
-kubectl label --overwrite=true nodes {{ cluster_cfg['layout']['machine-list'][host]['nodename'] }} pai-worker=true || exit $?
+echo kubectl label --overwrite=true nodes {{ cluster_cfg['layout']['machine-list'][host]['nodename'] }} pai-worker=true || exit $?
     {% endif %}
     {% if 'pai-storage' in cluster_cfg['layout']['machine-list'][host] and cluster_cfg['layout']['machine-list'][host]['pai-storage'] == 'true' %}
-kubectl label --overwrite=true nodes {{ cluster_cfg['layout']['machine-list'][host]['nodename'] }} pai-storage=true || exit $?
+echo kubectl label --overwrite=true nodes {{ cluster_cfg['layout']['machine-list'][host]['nodename'] }} pai-storage=true || exit $?
     {% endif %}
 {% endfor %}
+) | parallel || exit $?
 
 popd > /dev/null

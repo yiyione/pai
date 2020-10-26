@@ -1,19 +1,5 @@
-// Copyright (c) Microsoft Corporation
-// All rights reserved.
-//
-// MIT License
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-// documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
-// to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-// BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 import c from 'classnames';
 import PropTypes from 'prop-types';
@@ -26,8 +12,9 @@ import {
   StackItem,
   FontClassNames,
   Link,
+  DefaultButton,
 } from 'office-ui-fabric-react';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 
 import Card from '../../components/card';
 import { UtilizationChart } from './utilization-chart';
@@ -37,120 +24,185 @@ import config from '../../config/webportal.config';
 
 import t from '../../components/tachyons.scss';
 import { ResourceBar } from './resource-bar';
+import GroupDetailDialog from './groupDetailDialog';
 
-const getResouceUtilization = (used, total) => {
-  if (Math.abs(total) < 1e-5) {
+const getResouceUtilization = (used, guaranteed) => {
+  if (Math.abs(guaranteed) < 1e-5) {
     return 0;
   }
-  return used / total;
+  return used / guaranteed;
+};
+
+const getGrantedGroupsDescription = groups => {
+  const str = groups.map(group => group.groupname).join();
+  if (str.length < 25) {
+    return str;
+  } else {
+    return str.substring(0, 22) + '...';
+  }
 };
 
 const isAdmin = cookies.get('admin') === 'true';
-const vcListColumns = [
-  {
-    key: 'name',
-    minWidth: 45,
-    maxWidth: 100,
-    name: 'Name',
-    isResizable: true,
-    onRender(vc) {
-      return (
-        <Stack verticalAlign='center' verticalFill>
-          {isAdmin ? (
-            <Link
-              href={'/job-list.html?vcName=' + vc.name}
-              className={FontClassNames.mediumPlus}
-            >
-              {vc.dedicated ? vc.name + ' (dedicated)' : vc.name}
-            </Link>
-          ) : (
-            <div className={FontClassNames.mediumPlus}>
-              {vc.dedicated ? vc.name + ' (dedicated)' : vc.name}
-            </div>
-          )}
-        </Stack>
-      );
+const vcListColumns = colProps => {
+  const columns = [
+    {
+      key: 'name',
+      minWidth: 45,
+      maxWidth: 100,
+      name: 'Name',
+      isResizable: true,
+      onRender(vc) {
+        return (
+          <Stack verticalAlign='center' verticalFill>
+            {isAdmin ? (
+              <Link
+                href={'/job-list.html?vcName=' + vc.name}
+                className={FontClassNames.mediumPlus}
+              >
+                {vc.dedicated ? vc.name + ' (dedicated)' : vc.name}
+              </Link>
+            ) : (
+              <div className={FontClassNames.mediumPlus}>
+                {vc.dedicated ? vc.name + ' (dedicated)' : vc.name}
+              </div>
+            )}
+          </Stack>
+        );
+      },
     },
-  },
-  {
-    key: 'utilization',
-    minWidth: 80,
-    maxWidth: 132,
-    name: 'Utilization',
-    isResizable: true,
-    className: zeroPaddingClass,
-    onRender(vc) {
-      const { resourcesUsed, resourcesTotal } = vc;
+    {
+      key: 'allocation',
+      minWidth: 80,
+      maxWidth: 132,
+      name: 'Allocation',
+      isResizable: true,
+      className: zeroPaddingClass,
+      onRender(vc) {
+        const { resourcesUsed, resourcesTotal } = vc;
+        const resourcesGuaranteed = vc.resourcesGuaranteed || resourcesTotal;
 
-      const resouceUtilization = Math.max(
-        getResouceUtilization(resourcesUsed.GPUs, resourcesTotal.GPUs),
-        getResouceUtilization(resourcesUsed.memory, resourcesTotal.memory),
-        getResouceUtilization(resourcesUsed.vCores, resourcesTotal.vCores),
-      );
-      return (
-        <Stack styles={{ root: [{ height: 98 }] }}>
-          <UtilizationChart percentage={resouceUtilization} />
-        </Stack>
-      );
+        const resouceUtilization = Math.max(
+          getResouceUtilization(resourcesUsed.GPUs, resourcesGuaranteed.GPUs),
+          getResouceUtilization(
+            resourcesUsed.memory,
+            resourcesGuaranteed.memory,
+          ),
+          getResouceUtilization(
+            resourcesUsed.vCores,
+            resourcesGuaranteed.vCores,
+          ),
+        );
+        return (
+          <Stack styles={{ root: [{ height: 98 }] }}>
+            <UtilizationChart percentage={resouceUtilization} />
+          </Stack>
+        );
+      },
     },
-  },
-  {
-    key: 'detail',
-    minWidth: 200,
-    name: 'Detail',
-    isResizable: true,
-    onRender(vc) {
-      const { resourcesUsed, resourcesTotal } = vc;
-      const resourceAvailable = vc.resourceAvailable || resourcesTotal;
-      const insufficient = !(resourceAvailable.GPUs === resourcesTotal.GPUs);
-      return (
-        <Stack
-          gap='s1'
-          verticalAlign='center'
-          verticalFill
-          styles={{ root: { marginRight: 20 } }}
-        >
-          <StackItem>
-            <ResourceBar
-              name={'Memory'}
-              percentage={getResouceUtilization(
-                resourcesUsed.memory,
-                resourcesTotal.memory,
-              )}
-              tailInfo={`${Math.round(resourcesUsed.memory)} / ${Math.round(
-                resourceAvailable.memory,
-              )}${insufficient ? ` (${resourcesTotal.memory})` : ''} MB`}
-            />
-          </StackItem>
-          <StackItem>
-            <ResourceBar
-              name={'CPU'}
-              percentage={getResouceUtilization(
-                resourcesUsed.vCores,
-                resourcesTotal.vCores,
-              )}
-              tailInfo={`${Math.round(resourcesUsed.vCores)} / ${Math.round(
-                resourceAvailable.vCores,
-              )}${insufficient ? ` (${resourcesTotal.vCores})` : ''}`}
-            />
-          </StackItem>
-          <StackItem>
-            <ResourceBar
-              name={'GPU'}
-              percentage={getResouceUtilization(
-                resourcesUsed.GPUs,
-                resourcesTotal.GPUs,
-              )}
-              tailInfo={`${Math.round(resourcesUsed.GPUs)} / ${Math.round(
-                resourceAvailable.GPUs,
-              )}${insufficient ? ` (${resourcesTotal.GPUs})` : ''}`}
-            />
-          </StackItem>
-        </Stack>
-      );
+    {
+      key: 'detail',
+      minWidth: 100,
+      name: 'Detail: Used / (Total - Bad)',
+      isResizable: true,
+      onRender(vc) {
+        const { resourcesUsed, resourcesTotal } = vc;
+        const resourcesGuaranteed = vc.resourcesGuaranteed || resourcesTotal;
+        return (
+          <Stack
+            gap='s1'
+            verticalAlign='center'
+            verticalFill
+            styles={{ root: { marginRight: 20 } }}
+          >
+            <StackItem>
+              <ResourceBar
+                name={'MEM GB'}
+                percentage={getResouceUtilization(
+                  resourcesUsed.memory,
+                  resourcesGuaranteed.memory,
+                )}
+                tailInfo={`${Math.round(resourcesUsed.memory / 1024)} /
+                  (${Math.round(resourcesTotal.memory / 1024)} - ${Math.round(
+                  (resourcesTotal.memory - resourcesGuaranteed.memory) / 1024,
+                )})
+                `}
+              />
+            </StackItem>
+            <StackItem>
+              <ResourceBar
+                name={'CPU'}
+                percentage={getResouceUtilization(
+                  resourcesUsed.vCores,
+                  resourcesGuaranteed.vCores,
+                )}
+                tailInfo={`${Math.round(resourcesUsed.vCores)} /
+                  (${Math.round(resourcesTotal.vCores)} - ${Math.round(
+                  resourcesTotal.vCores - resourcesGuaranteed.vCores,
+                )})
+                `}
+              />
+            </StackItem>
+            <StackItem>
+              <ResourceBar
+                name={'GPU'}
+                percentage={getResouceUtilization(
+                  resourcesUsed.GPUs,
+                  resourcesGuaranteed.GPUs,
+                )}
+                tailInfo={`${Math.round(resourcesUsed.GPUs)} /
+                  (${Math.round(resourcesTotal.GPUs)} - ${Math.round(
+                  resourcesTotal.GPUs - resourcesGuaranteed.GPUs,
+                )})
+                `}
+              />
+            </StackItem>
+          </Stack>
+        );
+      },
     },
-  },
-];
+  ];
+
+  if (isAdmin && colProps.groups) {
+    columns.push({
+      key: 'groups',
+      minWidth: 250,
+      name: 'Granted groups',
+      isResizable: true,
+      onRender(vc) {
+        const groups = [];
+        colProps.groups.forEach(group => {
+          const virtualClusters = group.extension.acls.virtualClusters;
+          if (
+            virtualClusters &&
+            (virtualClusters.includes(vc.name) || group.extension.acls.admin)
+          ) {
+            groups.push(group);
+          }
+        });
+        return (
+          <Stack
+            horizontal
+            verticalAlign='center'
+            horizontalAlign='space-between'
+            gap='m'
+          >
+            <div className={FontClassNames.medium}>
+              <p>{getGrantedGroupsDescription(groups)}</p>
+            </div>
+            <DefaultButton
+              text='Detail'
+              onClick={() => {
+                colProps.setGroupDetails({ vc, groups, hideDialog: false });
+              }}
+            />
+          </Stack>
+        );
+      },
+    });
+  }
+
+  return columns;
+};
 
 export const VirtualClusterDetailsList = props => {
   const virtualClusters = props.virtualClusters;
@@ -158,18 +210,34 @@ export const VirtualClusterDetailsList = props => {
     ...props,
   };
   delete otherProps.virtualClusters;
+  delete otherProps.groups;
   const vcList = Object.entries(virtualClusters).map(([key, val]) => {
     return { name: key, ...val };
   });
+  const [groupDetails, setGroupDetails] = useState({
+    hideDialog: true,
+    vc: { name: '' },
+    groups: [],
+  });
+
   return (
-    <DetailsList
-      columns={vcListColumns}
-      disableSelectionZone
-      items={vcList}
-      layoutMode={DetailsListLayoutMode.justified}
-      selectionMode={SelectionMode.none}
-      {...otherProps}
-    />
+    <>
+      <DetailsList
+        columns={vcListColumns({
+          ...props,
+          ...{ setGroupDetails },
+        })}
+        disableSelectionZone
+        items={vcList}
+        layoutMode={DetailsListLayoutMode.justified}
+        selectionMode={SelectionMode.none}
+        {...otherProps}
+      />
+      <GroupDetailDialog
+        groupDetails={groupDetails}
+        setGroupDetails={setGroupDetails}
+      />
+    </>
   );
 };
 

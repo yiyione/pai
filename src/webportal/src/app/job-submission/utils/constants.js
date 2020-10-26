@@ -84,28 +84,29 @@ export const PAI_ENV_VAR = [
   },
 ];
 export const PROTOCOL_TOOLTIPS = {
-  jobName:
-    'Name for the job, need to be unique, should be string in ^[A-Za-z0-9\\-._~]+$ format.',
-  taskRoleName: 'Name of the taskRole, string in ^[A-Za-z0-9\\-._~]+$ format.',
-  taskRoleContainerSize: [
-    'Resource required per container instance',
-    'CPU number and memory number will be auto scaled with GPU number by default.',
-  ],
-  taskRole: [
-    'Task roles are different types of task in the protocol.',
-    'One job may have one or more task roles, each task role has one or more instances, and each instance runs inside one container.',
-  ],
+  taskRoleContainerSize:
+    'https://openpai.readthedocs.io/en/latest/manual/cluster-user/quick-start.html',
+  hivedSkuType:
+    'https://openpai.readthedocs.io/en/latest/manual/cluster-user/quick-start.html',
+  taskRole:
+    'https://openpai.readthedocs.io/en/latest/manual/cluster-user/how-to-run-distributed-job.html#taskrole-and-instance',
   parameters:
-    'Parameters are key-value pairs that you could save your frequently used values and reference them in command section by their keys.',
-  secrets: `Secrets are used to store sensitive data. The value will be masked and won't be seen by other users.`,
+    'https://openpai.readthedocs.io/en/latest/manual/cluster-user/how-to-use-advanced-job-settings.html#parameters-and-secrets',
+  secrets: `https://openpai.readthedocs.io/en/latest/manual/cluster-user/how-to-use-advanced-job-settings.html#parameters-and-secrets`,
   data:
-    'Data section is used to generate pre-command that download/mount your data to specific path in container.',
+    'https://openpai.readthedocs.io/en/latest/manual/cluster-user/how-to-manage-data.html',
   tools:
-    'Tools section is used to configure the tools that are useful for jobs.',
+    'https://openpai.readthedocs.io/en/latest/manual/cluster-user/how-to-debug-jobs.html#how-to-debug-jobs',
   dockerImage:
-    'Please contact admin to make sure which cuda versions in docker image is supported by gpu drivers.',
+    'https://openpai.readthedocs.io/en/latest/manual/cluster-user/docker-images-and-job-examples.html',
   teamStorage:
-    "Team share storage is external storage defined by cluster admin. Select an element means the external storage will be mount to 'path' and user can treat it as local path.",
+    'https://openpai.readthedocs.io/en/latest/manual/cluster-user/how-to-manage-data.html#use-storage-in-jobs',
+  tensorboard:
+    'https://openpai.readthedocs.io/en/latest/manual/cluster-user/how-to-debug-jobs.html#how-to-use-tensorboard-plugin',
+  ssh:
+    'https://openpai.readthedocs.io/en/latest/manual/cluster-user/how-to-debug-jobs.html#how-to-use-ssh',
+  policy:
+    'https://openpai.readthedocs.io/en/latest/manual/cluster-user/how-to-use-advanced-job-settings.html#job-exit-spec-retry-policy-and-completion-policy',
 };
 
 export const COMMAND_PLACEHOLDER = `'You could define your own Parameters, Secrets or Data mount point on the right sidebar.
@@ -114,42 +115,58 @@ All lines will be concatenated by "&&". So do not use characters like "#", "\\" 
 
 export const DOCKER_OPTIONS = [
   {
-    key: 'tensorflow-gpu-python3.6',
-    text:
-      'tensorflow1.12 + python3.6 with gpu, cuda 9.0 (image: openpai/tensorflow-py36-cu90)',
-    image: 'openpai/tensorflow-py36-cu90',
+    key: 'python_3.6-pytorch_1.4.0-gpu',
+    text: 'PyTorch 1.4.0 + Python 3.6 with GPU, CUDA 10.1',
+    image: 'openpai/standard:python_3.6-pytorch_1.4.0-gpu',
   },
   {
-    key: 'tensorflow-cpu-python3.6',
-    text:
-      'tensorflow2.0dev + python3.6 with cpu (image: openpai/tensorflow-py36-cpu)',
-    image: 'openpai/tensorflow-py36-cpu',
+    key: 'python_3.6-pytorch_1.2.0-gpu',
+    text: 'PyTorch 1.2.0 + Python 3.6 with GPU, CUDA 10.0',
+    image: 'openpai/standard:python_3.6-pytorch_1.2.0-gpu',
   },
   {
-    key: 'tensorflow-gpu-python2.7',
-    text:
-      'tensorflow1.12 + python2.7 with gpu, cuda 9.0 (image: openpai/tensorflow-py27-cu90)',
-    image: 'openpai/tensorflow-py27-cu90',
+    key: 'python_3.6-tensorflow_2.1.0-gpu',
+    text: 'TensorFlow 2.1.0 + Python 3.6 with GPU, CUDA 10.1',
+    image: 'openpai/standard:python_3.6-tensorflow_2.1.0-gpu',
   },
   {
-    key: 'tensorflow-cpu-python2.7',
-    text:
-      'tensorflow1.12 + python2.7 with cpu (image: openpai/tensorflow-py27-cpu)',
-    image: 'openpai/tensorflow-py27-cpu',
+    key: 'python_3.6-tensorflow_1.15.0-gpu',
+    text: 'TensorFlow 1.15.0 + Python 3.6 with GPU, CUDA 10.0',
+    image: 'openpai/standard:python_3.6-tensorflow_1.15.0-gpu',
   },
   {
-    key: 'pytorch-gpu',
-    text:
-      'pytorch1.0 + python3.6 with gpu, cuda 9.0 (image: openpai/pytorch-py36-cu90)',
-    image: 'openpai/pytorch-py36-cu90',
+    key: 'python_3.6-mxnet_1.5.1-gpu',
+    text: 'MXNet 1.5.1 + Python 3.6 with GPU, CUDA 10.1',
+    image: 'openpai/standard:python_3.6-mxnet_1.5.1-gpu',
   },
   {
-    key: 'pytorch-cpu',
-    text: 'pytorch1.2 + python3.6 with cpu (image: openpai/pytorch-py36-cpu)',
-    image: 'openpai/pytorch-py36-cpu',
+    key: 'python_3.6-cntk_2.7-gpu',
+    text: 'CNTK 2.7 + Python 3.6 with GPU, CUDA 10.1',
+    image: 'openpai/standard:python_3.6-cntk_2.7-gpu',
+  },
+  {
+    key: 'python_3.6-pytorch_1.4.0-cpu',
+    text: 'PyTorch 1.4.0 + Python 3.6 with CPU',
+    image: 'openpai/standard:python_3.6-pytorch_1.4.0-cpu',
+  },
+  {
+    key: 'python_3.6-pytorch_1.2.0-cpu',
+    text: 'PyTorch 1.2.0 + Python 3.6 with CPU',
+    image: 'openpai/standard:python_3.6-pytorch_1.2.0-cpu',
+  },
+  {
+    key: 'python_3.6-tensorflow_2.1.0-cpu',
+    text: 'TensorFlow 2.1.0 + Python 3.6 with CPU',
+    image: 'openpai/standard:python_3.6-tensorflow_2.1.0-cpu',
+  },
+  {
+    key: 'python_3.6-tensorflow_1.15.0-cpu',
+    text: 'TensorFlow 1.15.0 + Python 3.6 with CPU',
+    image: 'openpai/standard:python_3.6-tensorflow_1.15.0-cpu',
   },
 ];
-export const DEFAULT_DOCKER_URI = 'openpai/tensorflow-py36-cu90';
+export const DEFAULT_DOCKER_URI =
+  'openpai/standard:python_3.6-pytorch_1.2.0-gpu';
 // For PAI runtime only
 export const PAI_PLUGIN = 'com.microsoft.pai.runtimeplugin';
 

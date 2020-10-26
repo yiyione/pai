@@ -1,26 +1,20 @@
-// Copyright (c) Microsoft Corporation
-// All rights reserved.
-//
-// MIT License
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-// documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-// the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
-// to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-// BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
-import querystring from 'querystring';
+import { PAIV2 } from '@microsoft/openpai-js-sdk';
+import urljoin from 'url-join';
 
 import config from '../../config/webportal.config';
 
 const username = cookies.get('user');
 const token = cookies.get('token');
+
+const client = new PAIV2.OpenPAIClient({
+  rest_server_uri: new URL(config.restServerUri, window.location.href),
+  username: username,
+  token: token,
+  https: window.location.protocol === 'https:',
+});
 
 export class UnauthorizedError extends Error {
   constructor(msg) {
@@ -29,47 +23,84 @@ export class UnauthorizedError extends Error {
   }
 }
 
-async function fetchWrapper(...args) {
-  const res = await fetch(...args);
-  const json = await res.json();
-  if (res.ok) {
-    return json;
-  } else {
-    if (json.code === 'UnauthorizedUserError') {
-      throw new UnauthorizedError(json.message);
+const wrapper = async func => {
+  try {
+    return await func();
+  } catch (err) {
+    if (err.data.code === 'UnauthorizedUserError') {
+      throw new UnauthorizedError(err.data.message);
     } else {
-      throw new Error(json.message);
+      throw new Error(err.data.message || err.message);
     }
   }
-}
+};
 
-export async function listJobs() {
-  return fetchWrapper(
-    `${config.restServerUri}/api/v1/jobs?${querystring.stringify({
-      username,
-    })}`,
+export async function listJobs(query) {
+  const url = urljoin(client.cluster.rest_server_uri, '/api/v2/jobs');
+  return wrapper(() =>
+    client.httpClient.get(url, undefined, undefined, {
+      ...query,
+      ...{ username },
+    }),
   );
 }
 
-export async function listAllJobs() {
-  return fetchWrapper(`${config.restServerUri}/api/v1/jobs`);
+export async function listAllJobs(query) {
+  const url = urljoin(client.cluster.rest_server_uri, '/api/v2/jobs');
+  return wrapper(() => client.httpClient.get(url, undefined, undefined, query));
 }
 
-export async function getUserInfo() {
-  return fetchWrapper(`${config.restServerUri}/api/v2/user/${username}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+export async function getJobStatusNumber(isAdmin) {
+  const url = urljoin(client.cluster.rest_server_uri, '/api/v2/jobs');
+  const query = {
+    limit: 0,
+    withTotalCount: true,
+  };
+  if (!isAdmin) {
+    query.username = username;
+  }
+
+  return wrapper(async () => {
+    const waiting = (await client.httpClient.get(url, undefined, undefined, {
+      ...query,
+      ...{ state: 'WAITING' },
+    })).totalCount;
+    const running = (await client.httpClient.get(url, undefined, undefined, {
+      ...query,
+      ...{ state: 'RUNNING' },
+    })).totalCount;
+    const stopped = (await client.httpClient.get(url, undefined, undefined, {
+      ...query,
+      ...{ state: 'STOPPED' },
+    })).totalCount;
+    const failed = (await client.httpClient.get(url, undefined, undefined, {
+      ...query,
+      ...{ state: 'FAILED' },
+    })).totalCount;
+    const succeeded = (await client.httpClient.get(url, undefined, undefined, {
+      ...query,
+      ...{ state: 'SUCCEEDED' },
+    })).totalCount;
+    return { waiting, running, stopped, failed, succeeded };
   });
 }
 
+export async function getUserInfo() {
+  return wrapper(() => client.user.getUser(username));
+}
+
 export async function listVirtualClusters() {
-  return fetchWrapper(`${config.restServerUri}/api/v2/virtual-clusters`);
+  return wrapper(() => client.virtualCluster.listVirtualClusters());
 }
 
 export async function getAvailableGpuPerNode() {
   const res = await fetch(
     `${config.restServerUri}/api/v2/virtual-clusters?nodes`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
   );
 
   if (res.ok) {
@@ -114,23 +145,7 @@ export async function getLowGpuJobInfos() {
 
 export async function stopJob(job) {
   const { name, username } = job;
-  const res = await fetch(
-    `${config.restServerUri}/api/v1/jobs/${username}~${name}/executionType`,
-    {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ value: 'STOP' }),
-    },
+  return wrapper(() =>
+    client.job.updateJobExecutionType(username, name, 'STOP'),
   );
-  const json = await res.json();
-  if (!res.ok) {
-    if (json.code === 'UnauthorizedUserError') {
-      throw new UnauthorizedError(json.message);
-    } else {
-      throw new Error(json.message);
-    }
-  }
 }

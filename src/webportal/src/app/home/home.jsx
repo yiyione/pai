@@ -34,6 +34,7 @@ import {
   UnauthorizedError,
   getLowGpuJobInfos,
   listAllJobs,
+  getJobStatusNumber,
 } from './home/conn';
 import { listAbnormalJobs } from '../components/util/job';
 import RecentJobList from './home/recent-job-list';
@@ -47,7 +48,8 @@ import t from '../components/tachyons.scss';
 
 const Home = () => {
   const [loading, setLoading] = useState(true);
-  const [jobs, setJobs] = useState(null);
+  const [jobStatusNumber, setJobStatusNumber] = useState(null);
+  const [runningJobs, setRunningJobs] = useState(null);
   const [userJobs, setUserJobs] = useState(null);
   const [userInfo, setUserInfo] = useState(null);
   const [virtualClusters, setVirtualClusters] = useState(null);
@@ -63,8 +65,9 @@ const Home = () => {
           .catch(alert);
       }
       Promise.all([
-        isAdmin ? listAllJobs().then(setJobs) : listJobs().then(setJobs),
-        listJobs().then(setUserJobs),
+        getJobStatusNumber(isAdmin).then(setJobStatusNumber),
+        listJobs({ limit: 100 }).then(setUserJobs),
+        listAllJobs({ state: 'RUNNING' }).then(setRunningJobs),
         getUserInfo().then(setUserInfo),
         listVirtualClusters().then(setVirtualClusters),
         getAvailableGpuPerNode().then(setGpuPerNode),
@@ -89,14 +92,14 @@ const Home = () => {
     return <SpinnerLoading />;
   } else {
     return (
-      <div
-        className={c(t.w100, t.h100)}
-        style={{ minWidth: 375, overflowY: 'auto' }}
-      >
+      <div className={c(t.w100)} style={{ minWidth: 375, overflowY: 'auto' }}>
         {/* small */}
         <MediaQuery maxWidth={BREAKPOINT1}>
           <Stack padding='l2' gap='l1' styles={{ minHeight: '100%' }}>
-            <JobStatus style={{ height: 320 }} jobs={jobs} />
+            <JobStatus
+              style={{ height: 320 }}
+              jobStatusNumber={jobStatusNumber}
+            />
             <React.Fragment>
               <VirtualClusterStatistics
                 style={{ height: 320 }}
@@ -110,27 +113,21 @@ const Home = () => {
                 virtualClusters={virtualClusters}
               />
             </React.Fragment>
-            <Card className={c(t.h100, t.ph5)}>
+            <Card>
               {isAdmin ? (
-                <Pivot>
+                <Pivot styles={{ root: { maxHeight: '100%' } }}>
                   <PivotItem
                     headerText='Abnormal jobs'
                     onRenderItemLink={(link, defaultRenderer) => {
                       return (
                         <Stack horizontal gap='s1'>
                           {defaultRenderer(link)}
-                          <TooltipIcon
-                            content={
-                              'A job is treaded as an abnormal job if running more than 5 days or GPU usage is lower than 10%'
-                            }
-                          />
                         </Stack>
                       );
                     }}
                   >
                     <AbnormalJobList
-                      style={{ minHeight: 0 }}
-                      jobs={listAbnormalJobs(jobs, lowGpuJobInfo)}
+                      jobs={listAbnormalJobs(runningJobs, lowGpuJobInfo)}
                     />
                   </PivotItem>
                   <PivotItem headerText='My recent jobs'>
@@ -149,16 +146,15 @@ const Home = () => {
         </MediaQuery>
         {/* large */}
         <MediaQuery minWidth={BREAKPOINT1 + 1}>
-          <Stack
-            padding='l2'
-            gap='l1'
-            styles={{ root: { height: '100%', minHeight: 640 } }}
-          >
+          <Stack padding='l2' gap='l1' styles={{ root: { height: '100%' } }}>
             {/* top */}
             <StackItem disableShrink>
               <Stack gap='l1' horizontal>
                 <React.Fragment>
-                  <JobStatus style={{ width: '33%' }} jobs={jobs} />
+                  <JobStatus
+                    style={{ width: '33%' }}
+                    jobStatusNumber={jobStatusNumber}
+                  />
                   <VirtualClusterStatistics
                     style={{ width: '33%' }}
                     userInfo={userInfo}
@@ -174,33 +170,25 @@ const Home = () => {
               </Stack>
             </StackItem>
             {/* bottom */}
-            <Card className={c(t.h100, t.ph5)}>
+            <Card style={{ minHeight: 600 }}>
               {isAdmin ? (
-                <Pivot>
-                  <PivotItem
-                    headerText='Abnormal jobs'
-                    onRenderItemLink={(link, defaultRenderer) => {
-                      return (
-                        <Stack horizontal gap='s1'>
-                          {defaultRenderer(link)}
-                          <TooltipIcon
-                            content={
-                              'A job is treaded as an abnormal job if running more than 5 days or GPU usage is lower than 10%'
-                            }
-                          />
-                        </Stack>
-                      );
-                    }}
-                  >
-                    <AbnormalJobList
-                      style={{ minHeight: 0 }}
-                      jobs={listAbnormalJobs(jobs, lowGpuJobInfo)}
-                    />
-                  </PivotItem>
-                  <PivotItem headerText='My recent jobs'>
-                    <RecentJobList style={{ minHeight: 0 }} jobs={userJobs} />
-                  </PivotItem>
-                </Pivot>
+                <Stack horizontal>
+                  <TooltipIcon
+                    content={
+                      'https://openpai.readthedocs.io/en/latest/manual/cluster-admin/basic-management-operations.html#abnormal-jobs'
+                    }
+                  />
+                  <Pivot>
+                    <PivotItem headerText='Abnormal jobs'>
+                      <AbnormalJobList
+                        jobs={listAbnormalJobs(runningJobs, lowGpuJobInfo)}
+                      />
+                    </PivotItem>
+                    <PivotItem headerText='My recent jobs'>
+                      <RecentJobList style={{ minHeight: 0 }} jobs={userJobs} />
+                    </PivotItem>
+                  </Pivot>
+                </Stack>
               ) : (
                 <Pivot>
                   <PivotItem headerText='My recent jobs'>

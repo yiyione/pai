@@ -5,7 +5,7 @@ cluster:
     k8s-rbac: "true"
     job-history: "true"
     data-path: "/datastorage"
-    qos-switch: "false"
+    qos-switch: "{{ env["cfg"]["qos-switch"] }} | default('false') "
     docker-data-root: "{{ env['cfg']['docker_data_root'] | default('/mnt/docker') }}"
 
   # the docker registry to store docker images that contain system services like frameworklauncher, hadoop, etc.
@@ -19,12 +19,12 @@ cluster:
     domain: {{ env["cfg"]['docker_registry_domain'] | default('docker.io') }}
     # If the docker registry doesn't require authentication, please comment username and password
     {% if "docker_registry_username" in env["cfg"] %}
-    username: env["cfg"]["docker_registry_username"]
+    username: {{ env["cfg"]["docker_registry_username"] }}
     {% else %}
     #username: <username>
     {% endif %}
-    {% if "docker_registry_password:" in env["cfg"] %}
-    password: env["cfg"]["docker_registry_password"]
+    {% if "docker_registry_password" in env["cfg"] %}
+    password: {{ env["cfg"]["docker_registry_password"] }}
     {% else %}
     #password: <password>
     {% endif %}
@@ -46,22 +46,14 @@ rest-server:
 
 
 webportal:
-  plugins:
-  - id: submit-job-v2
-    title: Submit Job v2
-    uri: https://gerhut.github.io/store/submit-job-v2/plugin.js
-  - id: marketplace
-    title: Marketplace
-    uri: https://gerhut.github.io/store/marketplace/plugin.js
   server-port: 9286
-
 
 #If you want to customize the scheduling config, such add more virtual clusters or more gpu types, check:
 #https://github.com/microsoft/pai/blob/master/docs/hivedscheduler/devops.md
 hivedscheduler:
   config: |
     physicalCluster:
-      gpuTypes:
+      skuTypes:
         DT:
           gpu: 1
           cpu: {{ env["hived"]["unit-cpu"] }}
@@ -172,17 +164,37 @@ authentication:
 #  port: 80
 
 
-# if you want to enable alert manager to send alert email, uncomment following lines and fill
-# the right values.
+# if you want to enable alert-handler actions, uncomment following lines and fill the right values.
 # alert-manager:
-#   receiver: your_addr@example.com
-#   smtp_url: smtp.office365.com:587
-#   smtp_from: alert_sender@example.com
-#   smtp_auth_username: alert_sender@example.com
-#   smtp_auth_password: password_for_alert_sender
-#   port: 9093 # this is optional, you should not write this if you do not want to change the port alert-manager is listening on
+#   port: 9093 # optional, do not modify this if you do not want to change the port alert-manager is listening on
+#   alert-handler: # alert-handler will only be enabled when this field is not empty
+#     port: 9095 # optional, do not modify this if you do not want to change the port alert-handler is listening on
+#     log-level: "info" # optional
+#     pai-bearer-token: 'your-application-token-for-pai-rest-server'
+#     email-configs: # email-notification will only be enabled when this field is not empty
+#       admin-receiver: addr-of-admin-receiver@example.com
+#       smtp-host: smtp.office365.com
+#       smtp-port: 587
+#       smtp-from: alert-sender@example.com
+#       smtp-auth-username: alert-sender@example.com
+#       smtp-auth-password: password-for-alert-sender
+#   customized-routes:
+#     routes:
+#     - receiver: pai-email-admin-user-and-stop-job
+#       match:
+#         alertname: PAIJobGpuPercentLowerThan0_3For1h
+#   customized-receivers:
+#     - name: "pai-email-admin-user-and-stop-job"
+#       actions: 
+#         - email-admin
+#         - email-user
+#         - stop-jobs
+#         - tag-jobs
+#       tags: 
+#         - 'stopped-by-alert-manager'
 
-# uncomment following if you want to change customeize grafana
+
+# uncomment following if you want to change customize grafana
 # grafana:
 #   port: 3000
 
@@ -199,11 +211,21 @@ authentication:
 #   interface: eth0,eno2
 
 
-# uncomment following if you want to change customeize prometheus
+# uncomment following if you want to customize prometheus
 # prometheus:
-#   port: 9091
+#   port: 9091 # optional, do not modify this if you do not want to change the port prometheus is listening on
 #   # How frequently to scrape targets
 #   scrape_interval: 30
+#   customized-alerts: |
+#     groups:
+#       - name: customized-alerts
+#         rules:
+#           - alert: PAIJobGpuPercentLowerThan0_3For1h
+#             expr: avg(task_gpu_percent{virtual_cluster=~"default"}) by (job_name) < 0.3
+#             for: 1h
+#             annotations:
+#               summary: "{{$labels.job_name}} has a job gpu percent lower than 30% for 1 hour"
+#               description: Monitor job level gpu utilization in certain virtual clusters.
 
 
 # uncomment following section if you want to customize the threshold of cleaner

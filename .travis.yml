@@ -2,15 +2,6 @@ sudo: required
 dict: xenial
 matrix:
   include:
-    - language: python
-      python: 2.7
-      before_install:
-        - cd deployment
-      install:
-        - pip install paramiko pyyaml jinja2 python-etcd kubernetes
-      script:
-        - python -m unittest discover test/
-
     - language: go
       go: 1.13.8
       before_install:
@@ -24,23 +15,13 @@ matrix:
     - language: python
       python: 2.7
       install:
-      - pip install paramiko pyyaml jinja2 python-etcd kubernetes GitPython
+        - pip install dnspython==1.13.0 paramiko pyyaml jinja2 python-etcd kubernetes GitPython
       script:
-      - python -m unittest deployment.clusterObjectModel.test.test_cluster_object_model
-
-    - language: python
-      python: 2.7
-      install:
-      - pip install paramiko pyyaml jinja2 python-etcd kubernetes GitPython
-      script:
-      - python -m unittest deployment.clusterObjectModel.test.test_template_generate
-
-    - language: python
-      python: 2.7
-      install:
-        - pip install paramiko pyyaml jinja2 python-etcd kubernetes GitPython
-      script:
+        - python -m unittest deployment.clusterObjectModel.test.test_cluster_object_model
+        - python -m unittest deployment.clusterObjectModel.test.test_template_generate
         - python -m unittest deployment.clusterObjectModel.test.test_forward_compatibility
+        - cd deployment
+        - python -m unittest discover test/
 
     - language: python
       python: 3.7
@@ -61,7 +42,7 @@ matrix:
         - python3 -m unittest discover .
 
     - language: python
-      python: 2.7
+      python: 3.8
       install:
         - pip install markdown==2.6.11
       script:
@@ -87,7 +68,7 @@ matrix:
         - mvn clean test jacoco:report
 
     - language: node_js
-      node_js: lts/carbon
+      node_js: lts/dubnium
       env: NODE_ENV=test
       before_install:
         - cd src/rest-server
@@ -95,16 +76,7 @@ matrix:
         - yarn install
       script:
         - npm test
-
-    - language: node_js
-      node_js: lts/dubnium
-      env: NODE_ENV=test
-      before_install:
-        - cd src/rest-server
-      install:
-        - yarn install --ignore-engines
-      script:
-        - npm test
+        - npm run coveralls
 
     - language: node_js
       node_js: lts/carbon
@@ -139,7 +111,8 @@ matrix:
       script: yarn build
 
     - language: node_js
-      node_js: lts/dubnium
-      before_install: cd contrib/marketplace
-      install: yarn --frozen-lockfiles
-      script: yarn build
+      node_js: node
+      install:
+        - npm install -g @apidevtools/swagger-cli
+      script:
+        - swagger-cli validate src/rest-server/docs/swagger.yaml
