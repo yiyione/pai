@@ -24,6 +24,12 @@ data:
   config.yml: |-
     global:
       resolve_timeout: 5m
+      smtp_smarthost: {{ cluster_cfg["alert-manager"]["alert-handler"]["email-configs"]["smtp-host"] }}:{{ cluster_cfg["alert-manager"]["alert-handler"]["email-configs"]["smtp-port"] }}
+      smtp_from: {{ cluster_cfg["alert-manager"]["alert-handler"]["email-configs"]["smtp-from"] }}
+      smtp_auth_username: {{ cluster_cfg["alert-manager"]["alert-handler"]["email-configs"]["smtp-auth-username"] }}
+      smtp_auth_password:  {{ cluster_cfg["alert-manager"]["alert-handler"]["email-configs"]["smtp-auth-password"] }}
+    templates:
+    - "/etc/alertmanager/template/*.tmpl"
     
     route:
       receiver: pai-email-admin
@@ -36,6 +42,22 @@ data:
       - receiver: pai-cordon-nodes
         match:
           alertname: NvidiaSmiDoubleEccError
+      - receiver: 'pai-notice'
+        match:
+          report_type: cluster-usage
+        group_by: [alertname, trigger_time]
+      - receiver: "pai-user"
+        group_by: ["user_name", "job_name", "job_gpu_util"]
+        match:
+          report_type: user-utilization
+      - receiver: "pai-debug"
+        group_by: ["user_name", "job_name"]
+        match:
+          report_type: debug-overtime
+      - receiver: "pai-debug-start"
+        group_by: ["user_name", "job_name"]
+        match:
+          report_type: "debug-start"
 
       {% if 'routes' in cluster_cfg["alert-manager"]["customized-routes"] %}
       {% for route in cluster_cfg["alert-manager"]["customized-routes"]["routes"] %}
@@ -55,6 +77,7 @@ data:
       {% endfor %}
       {% endif %}
 
+
     receivers:
     - name: "pai-email-admin"
       webhook_configs:
@@ -62,6 +85,41 @@ data:
       - url: 'http://localhost:{{ cluster_cfg["alert-manager"]["alert-handler"]["port"] }}/alert-handler/send-email-to-admin'
         send_resolved: true
       {% endif %}
+
+    - name: "pai-notice"
+      email_configs:
+        - to: 'binyli@microsoft.com, pai-utilization@microsoft.com'
+          send_resolved: false
+          html: '{{ "{{" }} template "email.notice.html" . {{ "}}" }}'
+          headers:
+            subject: '{{ "{{" }} template "email.subject" . {{ "}}" }}'
+    - name: "pai-user"
+      email_configs:
+        - to: '{{ "{{" }} template "email.debug.start.user" . {{ "}}" }}, binyli@microsoft.com'
+          send_resolved: false
+          html: '{{ "{{" }} template "email.user.html" . {{ "}}" }}'
+          headers:
+            subject: User Job Low Efficiency Notice
+            To: '{{ "{{" }} template "email.debug.start.user" . {{ "}}" }}'
+            CC: 'binyli@microsoft.com'
+    - name: "pai-debug"
+      email_configs:
+        - to: '{{ "{{" }} template "email.debug.start.user" . {{ "}}" }}, binyli@microsoft.com'
+          send_resolved: false
+          html: '{{ "{{" }} template "email.debug.html" . {{ "}}" }}'
+          headers:
+            subject: User Debug Job Overtime Notice
+            To: '{{ "{{" }} template "email.debug.start.user" . {{ "}}" }}'
+            CC: binyli@microsoft.com
+    - name: "pai-debug-start"
+      email_configs:
+        - to: '{{ "{{" }} template "email.debug.start.user" . {{ "}}" }}, binyli@microsoft.com'
+          send_resolved: false
+          html: '{{ "{{" }} template "email.debug.start.html" . {{ "}}" }}'
+          headers:
+            subject: "PAI User Debug Job Starts"
+            To: '{{ "{{" }} template "email.debug.start.user" . {{ "}}" }}'
+            CC: binyli@microsoft.com
 
     - name: pai-cordon-nodes
       webhook_configs:

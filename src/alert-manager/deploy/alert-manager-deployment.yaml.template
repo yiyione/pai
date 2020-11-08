@@ -56,6 +56,8 @@ spec:
           mountPath: /etc/alertmanager
         - name: alertmanager
           mountPath: /alertmanager
+        - name: templates-volume
+          mountPath: /etc/alertmanager/template
 {% if cluster_cfg["alert-manager"]["alert-handler"]["configured"] %}
       - name: alerthandler
         image: {{ cluster_cfg['cluster']['docker-registry']['prefix'] }}alert-handler:{{ cluster_cfg['cluster']['docker-registry']['tag'] }}
@@ -92,6 +94,9 @@ spec:
           name: alertmanager-configmap
       - name: alertmanager
         emptyDir: {}
+      - name: templates-volume
+        configMap:
+          name: alert-templates
       tolerations:
       - key: node.kubernetes.io/memory-pressure
         operator: "Exists"
