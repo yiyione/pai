@@ -56,7 +56,7 @@ spec:
           mountPath: /etc/alertmanager
         - name: alertmanager
           mountPath: /alertmanager
-        - name: templates-volume
+        - name: templates-notice-volume
           mountPath: /etc/alertmanager/template
 {% if cluster_cfg["alert-manager"]["alert-handler"]["configured"] %}
       - name: alerthandler
@@ -117,9 +117,9 @@ spec:
 {% endif %}
       - name: alertmanager
         emptyDir: {}
-      - name: templates-volume
+      - name: templates-notice-volume
         configMap:
-          name: alert-templates
+          name: alert-templates-notice
       tolerations:
       - key: node.kubernetes.io/memory-pressure
         operator: "Exists"

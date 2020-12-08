@@ -19,7 +19,7 @@
 
 pushd $(dirname "$0") > /dev/null
 
-# kubectl create configmap alert-templates --from-file=alert-templates --dry-run -o yaml | kubectl apply --overwrite=true -f - || exit $?
+kubectl create configmap alert-templates-notice --from-file=alert-templates-notice --dry-run -o yaml | kubectl apply --overwrite=true -f - || exit $?
 # crate configmap for alert-templates
 {% if cluster_cfg["alert-manager"]["alert-handler"]["configured"] -%}
 {% if 'email-admin' in cluster_cfg["alert-manager"]["actions-available"] -%}
