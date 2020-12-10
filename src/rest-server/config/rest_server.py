@@ -109,7 +109,7 @@ class RestServer:
         if 'kubernetes' not in cluster_object_model['layout'] or 'api-servers-url' not in cluster_object_model['layout']['kubernetes']:
             return False, 'kubernetes.api-servers-url is required'
 
-        if len(cluster_object_model['hivedscheduler']['config']) > 0:
+        if len(cluster_object_model['hivedscheduler']['config']) == 0:
           # hived is not set and we use default scheduler
           if len(self.used_computing_device_types) > 1:
             return False, "Currently, we only support one kind of computing devices when default scheduler is on."
