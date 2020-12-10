@@ -44,9 +44,9 @@ class RestServer:
     def find_computing_device_types(self):
       computing_device_types = set()
       machine_sku_to_device_type = {
-          sku_name: sku_attrs['computing-devices']['type']
+          sku_name: sku_attrs['computing-device']['type']
           for sku_name, sku_attrs in self.cluster_configuration['machine-sku'].items()
-          if 'computing-devices' in sku_attrs
+          if 'computing-device' in sku_attrs
       }
       workers = list(filter(lambda elem: 'pai-worker' in elem and elem["pai-worker"] == 'true', self.cluster_configuration['machine-list']))
       for worker in workers:
@@ -109,7 +109,11 @@ class RestServer:
         if 'kubernetes' not in cluster_object_model['layout'] or 'api-servers-url' not in cluster_object_model['layout']['kubernetes']:
             return False, 'kubernetes.api-servers-url is required'
 
-        print('validation_post', cluster_object_model)
+        print('is hived in', 'hivedscheduler' in cluster_object_model)
         print('used_computing_device_types', self.used_computing_device_types)
+        if 'hivedscheduler' not in cluster_object_model or 'config' not in cluster_object_model['hivedscheduler']:
+          # hived is not set and we use default scheduler
+          if len(self.used_computing_device_types) > 1:
+            return False, "Currently, we only support one kind of computing devices when default scheduler is on."
 
         return True, None
