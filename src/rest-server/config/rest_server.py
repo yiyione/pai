@@ -41,7 +41,7 @@ class RestServer:
         return True, None
 
     # This function is used to find the all valid computing device types from `layout.yaml`
-    def find_computing_device_types():
+    def find_computing_device_types(self):
       computing_device_types = set()
       machine_sku_to_device_type = {
           sku_name: sku_attrs['computing-devices']['type']
