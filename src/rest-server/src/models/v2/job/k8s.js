@@ -482,7 +482,7 @@ const generateTaskRole = (
                   cpu: config.taskRoles[taskRole].resourcePerInstance.cpu,
                   memory: `${config.taskRoles[taskRole].resourcePerInstance.memoryMB}Mi`,
                   'github.com/fuse': 1,
-                  launcherConfig.defaultComputingDeviceType:
+                  [launcherConfig.defaultComputingDeviceType]:
                     config.taskRoles[taskRole].resourcePerInstance.gpu,
                   ...(infinibandDevice && { 'rdma/hca': 1 }),
                 },
