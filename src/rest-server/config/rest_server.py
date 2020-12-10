@@ -110,5 +110,6 @@ class RestServer:
             return False, 'kubernetes.api-servers-url is required'
 
         print('validation_post', cluster_object_model)
+        print('used_computing_device_types', self.used_computing_device_types)
 
         return True, None
