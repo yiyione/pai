@@ -111,6 +111,7 @@ class RestServer:
 
         print('is hived in', 'hivedscheduler' in cluster_object_model)
         print('used_computing_device_types', self.used_computing_device_types)
+        print(cluster_object_model['hivedscheduler'])
         if 'hivedscheduler' not in cluster_object_model or 'config' not in cluster_object_model['hivedscheduler']:
           # hived is not set and we use default scheduler
           if len(self.used_computing_device_types) > 1:
