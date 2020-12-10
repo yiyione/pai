@@ -37,7 +37,7 @@ const k8sLauncherConfigSchema = Joi.object()
     sqlMaxConnection: Joi.number().integer().required(),
     enabledJobHistory: Joi.boolean().required(),
     writeMergerUrl: Joi.string().required(),
-    defaultComputingDeviceType: Joi.string.required(),
+    defaultComputingDeviceType: Joi.string().required(),
     healthCheckPath: Joi.func().arity(0).required(),
     frameworksPath: Joi.func().arity(0).required(),
     frameworkPath: Joi.func().arity(1).required(),

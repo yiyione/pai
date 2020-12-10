@@ -287,8 +287,7 @@ const getVcList = async () => {
       ),
       gpu: nodes.reduce(
         (sum, node) =>
-          sum +
-          k8s.atoi(node.status.capacity[defaultComputingDeviceType])
+          sum + k8s.atoi(node.status.capacity[defaultComputingDeviceType]),
         0,
       ),
     };
@@ -305,8 +304,7 @@ const getVcList = async () => {
       ),
       gpu: preemptedNodes.reduce(
         (sum, node) =>
-          sum +
-          k8s.atoi(node.status.capacity[defaultComputingDeviceType]),
+          sum + k8s.atoi(node.status.capacity[defaultComputingDeviceType]),
         0,
       ),
     };
