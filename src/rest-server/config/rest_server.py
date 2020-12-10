@@ -24,8 +24,6 @@ class RestServer:
 
     #### Fist check, ensure all the configured data in cluster_configuration, service_configuration, default_service_configuration is right. And nothing is miss.
     def validation_pre(self):
-        print('self.cluster_configuration', self.cluster_configuration)
-        print('self.service_configuration', self.service_configuration)
         machine_list = self.cluster_configuration['machine-list']
         if 'default-pai-admin-username' not in self.service_configuration:
             return False, '"default-pai-admin-username" is required in rest-server'
