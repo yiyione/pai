@@ -16,8 +16,8 @@
 - name: Check memory resource meets the memory specified by user
   set_fact:
     unmet_requirements: >
-      "{{ unmet_requirements + [\"In layout.yaml, the memory for this host is {{ memory_mb }}MB, "
-      "but the host only have {{ ansible_memory_mb['real']['total'] }}MB in total. \"] }}"
+      "{{ unmet_requirements + [\"In layout.yaml, the memory for this host is {{ memory_mb }}MB,
+      but the host only have {{ ansible_memory_mb['real']['total'] }}MB in total. \"] }}"
   when:
     - ansible_memory_mb['real']['total'] < memory_mb
 
