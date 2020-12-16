@@ -4,3 +4,11 @@
     unmet_requirements: "{{ unmet_requirements + [\"OpenPAI's worker node should have 16 Gi free memory for service\"] }}"
   when:
     - ansible_memory_mb["nocache"]["free"] < 16000
+
+- name: debug111
+  debug:
+    var: ansible_memory_mb
+
+- name: debug222
+  debug:
+    var: memory_mb
