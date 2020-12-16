@@ -53,6 +53,14 @@ def generate_template_file(template_file_path, output_path, map_table):
     generated_template = generate_from_template_dict(template, map_table)
     write_generated_file(output_path, generated_template)
 
+def convert_to_mb(size_str):
+    # size_str could be "<num>GB" or "<num>MB"
+    if size_str.endswith('GB'):
+        return int(size_str[:-2]) * 1024
+    elif size_str.endswith('MB'):
+        return int(size_str[:-2])
+    else:
+        raise Exception("Invalid memory size string: {}".format(size_str))
 
 def main():
     parser = argparse.ArgumentParser()
@@ -72,6 +80,18 @@ def main():
     masters = list(filter(lambda elem: 'pai-master' in elem and elem["pai-master"] == 'true', layout['machine-list']))
     workers = list(filter(lambda elem: 'pai-worker' in elem and elem["pai-worker"] == 'true', layout['machine-list']))
     head_node = masters[0]
+
+    # fill in cpu, memory, computing_device information in both masters and workers
+    # we assume the layout file the user gives is correct
+    # TO DO: check layout file before this step
+    all_machines = masters + workers
+    for machine in all_machines:
+        sku_info = layout['machine-sku'][machine['machine-type']]
+        # for now, assume the format is <num>GB or <num>MB.
+        machine['memory_mb'] = convert_to_mb(sku_info['mem'])
+        machine['cpu_vcores'] = sku_info['cpu']['vcore']
+        if 'computing-device' in sku_info:
+            machine['computing_device'] = sku_info['computing-device']
 
     environment = {
         'masters': masters,
