@@ -4,11 +4,3 @@
     unmet_requirements: "{{ unmet_requirements + [\"OpenPAI's worker node should have 16 Gi free memory for service\"] }}"
   when:
     - ansible_memory_mb["nocache"]["free"] < 16000
-
-- name: Check memory resource meets the memory specified by user
-  set_fact:
-    unmet_requirements: "{{ unmet_requirements + [\"In layout.yaml, the memory specified for this host is {{ memory_mb }}MB, but the host only have {{ ansible_memory_mb['real']['total'] }}MB in total. \"] }}"
-  when:
-    - ansible_memory_mb['real']['total'] < memory_mb
-
-
