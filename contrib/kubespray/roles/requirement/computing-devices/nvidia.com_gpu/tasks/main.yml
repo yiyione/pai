@@ -52,7 +52,7 @@
   check_mode: false
   environment: {}
   when:
-    - int(nvidia_gpu_count.stdout_lines[0]) != computing_device_count 
+    - "{{ nvidia_gpu_count.stdout_lines[0] | int }} != computing_device_count"
 
 - name: "Check NVIDIA container runtime with command"
   raw: "command -v nvidia-container-runtime "
