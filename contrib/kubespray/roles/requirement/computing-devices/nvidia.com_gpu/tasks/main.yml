@@ -33,7 +33,7 @@
   when:
     - nvidia_smi.rc != 0
 
-- name: "Check NVIDIA GPU Card Number"
+- name: "Check NVIDIA GPU card number with nvidia-smi"
   raw: "nvidia-smi --query-gpu=gpu_name --format=csv | tail --lines=+2 | wc -l"
   register: nvidia_gpu_count
   failed_when: false
@@ -44,6 +44,15 @@
 - name: debug
   debug:
     var: nvidia_gpu_count
+
+- name: "Check NVIDIA GPU card number is matched or not"
+  set_fact:
+    unmet_requirements: "{{ unmet_requirements + ['NVIDIA GPU card number is not matched.'] }}"
+  changed_when: false
+  check_mode: false
+  environment: {}
+  when:
+    - int(nvidia_gpu_count.stdout_lines[0]) != computing_device_count 
 
 - name: "Check NVIDIA container runtime with command"
   raw: "command -v nvidia-container-runtime "
