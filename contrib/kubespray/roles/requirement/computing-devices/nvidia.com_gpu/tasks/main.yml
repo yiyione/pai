@@ -43,7 +43,7 @@
 
 - name: debug
   debug:
-    var: nvidia_gpu_count
+    var: nvidia_gpu_count.stdout_lines[0]|int
 
 - name: "Check NVIDIA GPU card number is matched or not"
   set_fact:
