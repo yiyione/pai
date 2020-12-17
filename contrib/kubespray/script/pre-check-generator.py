@@ -6,6 +6,7 @@ import yaml
 import jinja2
 from kubernetes.utils import parse_quantity
 import math
+from collections import defaultdict
 
 def setup_logger_config(logger):
     """
@@ -86,11 +87,19 @@ def main():
         if 'computing-device' in sku_info:
             machine['computing_device'] = sku_info['computing-device']
 
+    # add machine to different comupting device group
+    computing_device_groups = defaultdict(list)
+    for machine in all_machines:
+        sku_info = layout['machine-sku'][machine['machine-type']]
+        if 'computing-device' in sku_info:
+            computing_device_groups[sku_info['computing-device']['type']].append(machine['hostname'])
+
     environment = {
         'masters': masters,
         'workers': workers,
         'cfg': config,
-        'head_node': head_node
+        'head_node': head_node,
+        'computing_device_groups': computing_device_groups,
     }
 
     map_table = {
