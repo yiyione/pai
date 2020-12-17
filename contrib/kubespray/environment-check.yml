@@ -43,6 +43,20 @@
   roles:
     - { role: requirement/worker }
 
+- hosts: "nvidia.com/gpu"
+  become: true
+  become_user: root
+  gather_facts: true
+  roles:
+    - { role: requirement/computing-devices/nvidia.com_gpu }
+
+- hosts: "amd.com/gpu"
+  become: true
+  become_user: root
+  gather_facts: true
+  roles:
+    - { role: requirement/computing-devices/amd.com_gpu }
+
 - hosts: all,localhost
   tasks:
     - name: "display unmet requirements"
