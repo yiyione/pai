@@ -73,7 +73,6 @@
   when:
     - nvidia_container_runtime.rc != 0
 
-
 - name: "Get default docker runtime"
   raw: "{% raw %} docker info -f '{{json .DefaultRuntime}}'{% endraw %}"
   register: default_runtime
