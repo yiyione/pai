@@ -53,7 +53,7 @@ hivedscheduler:
   config: |
     physicalCluster:
       skuTypes:
-        {% for sku_name, sku_spec in env["hived"]["skus"].items() %}
+        {%- for sku_name, sku_spec in env["hived"]["skus"].items() -%}
         {{ sku_name }}:
         {% if sku_spec.gpu %}
           gpu: 1
