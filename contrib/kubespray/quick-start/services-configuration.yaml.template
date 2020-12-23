@@ -84,7 +84,7 @@ hivedscheduler:
         {%- for worker in sku_spec.workers -%}
         - cellAddress: {{ worker }}
         {%- endfor -%}
-      {%- endfor -%}
+      {%- endfor +%}
     virtualClusters:
       {%- for sku_name, sku_spec  in env["hived"]["skus"].items() -%}
         {%- if loop.index0 == 0 -%}
