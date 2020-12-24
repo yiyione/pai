@@ -53,18 +53,18 @@ hivedscheduler:
   config: |
     physicalCluster:
       skuTypes:
-        {% for sku_name, sku_spec in env["hived"]["skus"].items() %}
+        {%- for sku_name, sku_spec in env["hived"]["skus"].items() %}
         {{ sku_name }}:
-        {% if sku_spec.gpu %}
+        {%- if sku_spec.gpu %}
           gpu: 1
           cpu: {{ sku_spec.cpu }}
-        {% else %}
+        {%- else %}
           cpu: 1
-        {% endif %}
+        {%- endif %}
           memory: {{ sku_spec.memory }}Mi
-        {% endfor %}
+        {%- endfor %}
       cellTypes:
-        {% for sku_name, sku_spec in env["hived"]["skus"].items() %}
+        {%- for sku_name, sku_spec in env["hived"]["skus"].items() %}
         {{ sku_name }}-NODE:
           childCellType: {{ sku_name }}
           {%- if sku_spec.gpu %}
@@ -76,26 +76,26 @@ hivedscheduler:
         {{ sku_name }}-NODE-POOL:
           childCellType: {{ sku_name }}-NODE
           childCellNumber: {{ sku_spec.workers|length }}
-        {% endfor %}
+        {%- endfor %}
       physicalCells:
-      {% for sku_name, sku_spec  in env["hived"]["skus"].items() %}
+      {%- for sku_name, sku_spec  in env["hived"]["skus"].items() %}
       - cellType: {{ sku_name }}-NODE-POOL
         cellChildren:
-        {% for worker in sku_spec.workers %}
+        {%- for worker in sku_spec.workers %}
         - cellAddress: {{ worker }}
-        {% endfor %}
-      {% endfor %}
+        {%- endfor %}
+      {%- endfor %}
     virtualClusters:
-      {% for sku_name, sku_spec  in env["hived"]["skus"].items() %}
-        {% if loop.index0 == 0 %}
+      {%- for sku_name, sku_spec  in env["hived"]["skus"].items() %}
+        {%- if loop.index0 == 0 %}
         default:
-        {% else %}
+        {%- else %}
         {{ sku_name }}:
-        {% endif %}
+        {%- endif %}
           virtualCells:
           - cellType: {{ sku_name }}-NODE-POOL.{{ sku_name }}-NODE
             cellNumber: {{ sku_spec.workers|length }}
-      {% endfor %}
+      {%- endfor %}
 {% else %}
 {% endif %}
 
