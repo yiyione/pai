@@ -16,7 +16,7 @@
 
 - hosts: all
   gather_facts: false
-  task:
+  tasks:
     - name: debug
       debug:
         var: ansible_python_interpreter
