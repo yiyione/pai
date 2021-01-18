@@ -8,3 +8,14 @@
   apt:
     name: sshpass
     state: present
+
+
+# workaround for ubuntu 20.04
+# This is resolved in https://github.com/kubernetes-sigs/kubespray/pull/6157
+- name: "Install Python"
+  apt:
+    name: python
+    state: present
+  when:
+  - ansible_distribution_version is version('20.04', '=')
+
