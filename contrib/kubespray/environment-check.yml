@@ -1,4 +1,18 @@
 ---
+- hosts: all,localhost
+  gather_facts: false
+  tasks:
+    # Ubuntu 20.04 doesn't have python 2 pre-installed
+    # So use python3 as the interpreter
+    # Ubuntu 16.04, 18.04, and 20.04 all have it pre-installed
+    - name: set ansible_python_interpreter to python3
+      set_fact:
+        ansible_python_interpreter: "/usr/bin/python3"
+
+    - name: debug
+      debug:
+        var: ansible_python_interpreter
+
 - hosts: all
   gather_facts: false
   tasks:
@@ -14,12 +28,6 @@
     - name: "SSH test from dev-box to all machine of infra and worker"
       ping:
 
-- hosts: all
-  gather_facts: false
-  tasks:
-    - name: debug
-      debug:
-        var: ansible_python_interpreter
 
 - hosts: all,localhost
   gather_facts: false
