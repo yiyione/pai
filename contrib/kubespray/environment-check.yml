@@ -19,7 +19,6 @@
     - name: "SSH test from dev-box to all machine of infra and worker"
       ping:
 
-
 - hosts: all,localhost
   gather_facts: false
   tasks:
