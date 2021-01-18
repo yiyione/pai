@@ -6,9 +6,5 @@
 # This is resolved in PR https://github.com/kubernetes-sigs/kubespray/pull/6907
 - name: "Install sshpass"
   apt:
-    upgrade: yes
-    update_cache: yes
-    cache_valid_time: 3600
     name: sshpass
     state: present
-    install_recommends: no

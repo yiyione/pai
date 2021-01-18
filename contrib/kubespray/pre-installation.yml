@@ -1,14 +1,8 @@
 ---
-- hosts: all
+- hosts: all,localhost
   gather_facts: false
-  tasks:
-    - name: set ansible_python_interpreter to python3
-      set_fact:
-        ansible_python_interpreter: "/usr/bin/python3"
-
-    - name: output ansible_python_interpreter
-      debug:
-        var: ansible_python_interpreter
+  roles:
+    - { role: set-python3 }
 
 - hosts: all
   become: true
