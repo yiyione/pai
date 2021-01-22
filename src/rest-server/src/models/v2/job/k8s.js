@@ -44,6 +44,9 @@ const {
 } = require('@pai/models/v2/utils/name');
 
 const Sequelize = require('sequelize');
+const {
+  CLOUD_PROVIDER,
+} = process.env;
 
 const convertFrameworkSummary = (framework) => {
   return {
@@ -428,7 +431,7 @@ const generateTaskRole = (
           privileged: false,
           restartPolicy: 'Never',
           serviceAccountName: 'runtime-account',
-          initContainers: [
+          initContainers: CLOUD_PROVIDER === 'xcloud' ? [] : [
             {
               name: 'init',
               imagePullPolicy: 'Always',
@@ -481,7 +484,7 @@ const generateTaskRole = (
                 limits: {
                   cpu: config.taskRoles[taskRole].resourcePerInstance.cpu,
                   memory: `${config.taskRoles[taskRole].resourcePerInstance.memoryMB}Mi`,
-                  'github.com/fuse': 1,
+                  'github.com/fuse': CLOUD_PROVIDER === 'xcloud' ? 0 : 1,
                   [launcherConfig.defaultComputingDeviceType]:
                     config.taskRoles[taskRole].resourcePerInstance.gpu,
                   ...(infinibandDevice && { 'rdma/hca': 1 }),
@@ -565,7 +568,23 @@ const generateTaskRole = (
           affinity: {
             nodeAffinity: {
               requiredDuringSchedulingIgnoredDuringExecution: {
-                nodeSelectorTerms: [
+                nodeSelectorTerms: CLOUD_PROVIDER === 'xcloud' ? [
+                  {
+                    matchExpressions: [
+                      {
+                        key: 'pai-worker',
+                        operator: 'In',
+                        values: ['true'],
+                      },
+                      {
+                        key: 'kubernetes.io/hostname',
+                        operator: 'In',
+                        values: ['virtual-kubelet']
+                      }
+                    ],
+                  },
+                ] :
+                [
                   {
                     matchExpressions: [
                       {
@@ -579,6 +598,14 @@ const generateTaskRole = (
               },
             },
           },
+          tolerations: CLOUD_PROVIDER === 'xcloud' ? [
+            {
+              key: 'virtual-kubelet.io/provider',
+              operator: 'Equal',
+              value: 'mock',
+              effect: 'NoSchedule'
+            }
+          ] : [],
           imagePullSecrets: [
             {
               name: launcherConfig.runtimeImagePullSecrets,
