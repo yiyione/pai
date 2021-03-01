@@ -252,5 +252,5 @@ jobs:
       run: |
         docker exec -i dev-box /bin/bash << EOF_DEV_BOX
         cd /pai
-        ./build/pai_build.py build -c /cluster-configuration/
+        ./build/pai_build.py build -c ./cluster-configuration/
         EOF_DEV_BOX
