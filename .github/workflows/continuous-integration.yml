@@ -211,3 +211,43 @@ jobs:
         cd subprojects/frameworklauncher/yarn
         mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
         mvn clean test jacoco:report
+
+  build-images:
+    name: Test build OpenPAI images
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Setup dev-box
+      env:
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      run: |
+        mkdir cluster-configuration
+        cat << EOF > cluster-configuration/services-configuration.yaml
+        cluster:
+          common:
+            docker-registry:
+              domain: docker.io
+              namespace: openpai
+              secret-name: secret-name
+              tag: ci
+              username: ${{ secrets.SuperSecret }}
+              password: ${{ secrets.SuperSecret }}
+        EOF
+
+        docker run -it -d \
+          --name=dev-box \
+          --privileged=true \
+          -v $(pwd):/pai \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          --entrypoint /bin/bash \
+          openpai/dev-box:nightly
+        
+    - name: Build images
+      run: |
+        docker exec -i $(dev_box_name) /bin/bash << EOF_DEV_BOX
+        cd /pai
+        ./build/pai_build.py build -c /cluster-configuration/
+        EOF_DEV_BOX
