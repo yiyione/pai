@@ -36,6 +36,10 @@ data:
       - receiver: pai-cordon-nodes
         match:
           alertname: NvidiaSmiDoubleEccError
+      
+      - receiver: pai-cluster-usage
+        match:
+          report_type: cluster-usage
 
       {% if 'routes' in cluster_cfg["alert-manager"]["customized-routes"] %}
       {% for route in cluster_cfg["alert-manager"]["customized-routes"]["routes"] %}
@@ -61,6 +65,13 @@ data:
       {% if 'email-admin' in cluster_cfg["alert-manager"]["actions-available"] %}
       - url: 'http://localhost:{{ cluster_cfg["alert-manager"]["alert-handler"]["port"] }}/alert-handler/send-email-to-admin'
         send_resolved: true
+      {% endif %}
+    
+    - name: pai-cluster-usage
+      webhook_configs:
+      {% if 'email-admin' in cluster_cfg["alert-manager"]["actions-available"] %}
+      - url: 'http://localhost:{{ cluster_cfg["alert-manager"]["alert-handler"]["port"] }}/alert-handler/send-email-to-admin/?template=cluster-usage'
+        send_resolved: false
       {% endif %}
 
     - name: pai-cordon-nodes
@@ -88,14 +99,14 @@ data:
       - url: 'http://localhost:{{ cluster_cfg["alert-manager"]["alert-handler"]["port"] }}/alert-handler/send-email-to-user/?template={{ template }}'
         send_resolved: false
         http_config:
-          bearer_token: {{ cluster_cfg["alert-manager"]["alert-handler"]["pai-bearer-token"] }}
+          bearer_token: {{ cluster_cfg["alert-manager"]["pai-bearer-token"] }}
       {% endif %}
 
       {% if (receiver["actions"]["stop-jobs"] is defined) and ('stop-jobs' in cluster_cfg["alert-manager"]["actions-available"]) %}
       - url: 'http://localhost:{{ cluster_cfg["alert-manager"]["alert-handler"]["port"] }}/alert-handler/stop-jobs'
         send_resolved: false
         http_config:
-          bearer_token: {{ cluster_cfg["alert-manager"]["alert-handler"]["pai-bearer-token"] }}
+          bearer_token: {{ cluster_cfg["alert-manager"]["pai-bearer-token"] }}
       {% endif %}
 
       {% if (receiver["actions"]["tag-jobs"] is defined) and ('tag-jobs' in cluster_cfg["alert-manager"]["actions-available"]) %}
@@ -103,7 +114,7 @@ data:
       - url: 'http://localhost:{{ cluster_cfg["alert-manager"]["alert-handler"]["port"] }}/alert-handler/tag-jobs/{{ tag }}'
         send_resolved: false
         http_config:
-          bearer_token: {{ cluster_cfg["alert-manager"]["alert-handler"]["pai-bearer-token"] }}
+          bearer_token: {{ cluster_cfg["alert-manager"]["pai-bearer-token"] }}
       {% endfor %}
       {% endif %}
 

@@ -13,7 +13,7 @@ alert: GpuUsedByExternalProcess
 expr: gpu_used_by_external_process_count > 0
 for: 5m
 annotations:
-  summary: found nvidia used by external process in {{$labels.instance}}
+  summary: found NVIDIA used by external process in {{$labels.instance}}
 ```
 
 关于报警规则的详细语法，请参考[这里](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)。
@@ -74,9 +74,9 @@ prometheus:
 ```yaml
 alert-manager:
   port: 9093
+  pai-bearer-token: 'your-application-token-for-pai-rest-server'
   alert-handler:
     port: 9095
-    pai-bearer-token: 'your-application-token-for-pai-rest-server'
     email-configs:
       admin-receiver: addr-of-admin-receiver@example.com
       smtp-host: smtp.office365.com

@@ -23,6 +23,40 @@ const mockFrameworkStatus = () => {
   };
 };
 
+const mockFailedFrameworkStatus = () => {
+  // Mock a failed status for framework.
+  // We only use it for frameworks that never start.
+  const dateStr = (new Date()).toISOString();
+  return {
+    state: 'Completed',
+    startTime: dateStr,
+    runTime: dateStr,
+    transitionTime: dateStr,
+    completionTime: dateStr,
+    attemptStatus: {
+      completionStatus: {
+        code: -1100,
+        diagnostics: 'Job is submitted to database, but cannot be created in ApiServer due to permanent failures.',
+        phase: 'CreateFrameworkPermanentFailed',
+        type: {
+          attributes: ["Permanent"],
+          name: "Failed",
+        },
+        id: 0,
+        startTime: dateStr,
+        runTime: dateStr,
+        completionTime: dateStr,
+      },
+      taskRoleStatuses: [],
+    },
+    retryPolicyStatus: {
+      retryDelaySec: null,
+      totalRetriedCount: 0,
+      accountableRetriedCount: 0,
+    },
+  };
+};
+
 const convertFrameworkState = (state, exitCode) => {
   switch (state) {
     case 'AttemptCreationPending':
@@ -194,6 +228,9 @@ class Snapshot {
       creationTime: this._snapshot.metadata.creationTimestamp
         ? new Date(this._snapshot.metadata.creationTimestamp)
         : null,
+      launchTime: (this._snapshot.status.runTime || this._snapshot.status.completionTime)
+        ? new Date(this._snapshot.status.runTime || this._snapshot.status.completionTime)
+        : null,
       completionTime: this._snapshot.status.completionTime
         ? new Date(this._snapshot.status.completionTime)
         : null,
@@ -245,6 +282,10 @@ class Snapshot {
     return this._snapshot.status.state;
   }
 
+  getTotalRetriedCount() {
+    return _.get(this._snapshot, 'status.retryPolicyStatus.totalRetriedCount', 0);
+  }
+
   getSnapshot() {
     return _.cloneDeep(this._snapshot);
   }
@@ -290,20 +331,43 @@ class Snapshot {
     }
     this._snapshot = jsonmergepatch.apply(this._snapshot, patchData);
   }
+
+  setFailed() {
+    // Manually set the framework's status to failed.
+    // This is used when we cannot sync the framework request to api server,
+    // and we're sure that the error is unrecoverable.
+
+    // For now, we only use it for frameworks that never start.
+    // Also, requestSynced == false is guaranteed here.
+    // Because only call setFailed() from synchronizeHandler() in poller,
+    // and synchronizeHandler() is only called for requestSynced=false frameworks.
+    if (!this.getTotalRetriedCount() === 0 || this.getState() !== 'AttemptCreationPending') {
+      throw new Error('setFailed() only works for framework that never start!')
+    }
+
+    this._snapshot.status = mockFailedFrameworkStatus();
+  }
 }
 
 // Class Add-ons handles creation/patching/deletion of job add-ons.
-// Currently there are 3 types of add-ons: configSecret, priorityClass, and dockerSecret.
+// Currently there are 5 types of add-ons: configSecret, userExtensionSecret, priorityClass, dockerSecret, and tokenSecret.
 class AddOns {
   constructor(
     configSecretDef = null,
+    userExtensionSecretDef = null,
     priorityClassDef = null,
     dockerSecretDef = null,
+    tokenSecretDef = null,
   ) {
     if (configSecretDef !== null && !(configSecretDef instanceof Object)) {
       this._configSecretDef = JSON.parse(configSecretDef);
     } else {
       this._configSecretDef = configSecretDef;
+    }
+    if (userExtensionSecretDef !== null && !(userExtensionSecretDef instanceof Object)) {
+      this._userExtensionSecretDef = JSON.parse(userExtensionSecretDef);
+    } else {
+      this._userExtensionSecretDef = userExtensionSecretDef;
     }
     if (priorityClassDef !== null && !(priorityClassDef instanceof Object)) {
       this._priorityClassDef = JSON.parse(priorityClassDef);
@@ -315,6 +379,11 @@ class AddOns {
     } else {
       this._dockerSecretDef = dockerSecretDef;
     }
+    if (tokenSecretDef !== null && !(tokenSecretDef instanceof Object)) {
+      this._tokenSecretDef = JSON.parse(tokenSecretDef);
+    } else {
+      this._tokenSecretDef = tokenSecretDef;
+    }
   }
 
   async create() {
@@ -325,6 +394,19 @@ class AddOns {
         if (err.response && err.response.statusCode === 409) {
           logger.warn(
             `Secret ${this._configSecretDef.metadata.name} already exists.`,
+          );
+        } else {
+          throw err;
+        }
+      }
+    }
+    if (this._userExtensionSecretDef) {
+      try {
+        await k8s.createSecret(this._userExtensionSecretDef);
+      } catch (err) {
+        if (err.response && err.response.statusCode === 409) {
+          logger.warn(
+            `Secret ${this._userExtensionSecretDef.metadata.name} already exists.`,
           );
         } else {
           throw err;
@@ -357,6 +439,19 @@ class AddOns {
         }
       }
     }
+    if (this._tokenSecretDef) {
+      try {
+        await k8s.createSecret(this._tokenSecretDef);
+      } catch (err) {
+        if (err.response && err.response.statusCode === 409) {
+          logger.warn(
+            `Secret ${this._tokenSecretDef.metadata.name} already exists.`,
+          );
+        } else {
+          throw err;
+        }
+      }
+    }
   }
 
   silentPatch(frameworkResponse) {
@@ -365,9 +460,17 @@ class AddOns {
       k8s
         .patchSecretOwnerToFramework(this._configSecretDef, frameworkResponse)
         .catch(logError);
+    this._userExtensionSecretDef &&
+      k8s
+        .patchSecretOwnerToFramework(this._userExtensionSecretDef, frameworkResponse)
+        .catch(logError);
     this._dockerSecretDef &&
       k8s
         .patchSecretOwnerToFramework(this._dockerSecretDef, frameworkResponse)
+        .catch(logError);
+    this._tokenSecretDef &&
+      k8s
+        .patchSecretOwnerToFramework(this._tokenSecretDef, frameworkResponse)
         .catch(logError);
   }
 
@@ -375,12 +478,16 @@ class AddOns {
     // do not await for delete
     this._configSecretDef &&
       k8s.deleteSecret(this._configSecretDef.metadata.name).catch(logError);
+    this._userExtensionSecretDef &&
+      k8s.deleteSecret(this._userExtensionSecretDef.metadata.name).catch(logError);
     this._priorityClassDef &&
       k8s
         .deletePriorityClass(this._priorityClassDef.metadata.name)
         .catch(logError);
     this._dockerSecretDef &&
       k8s.deleteSecret(this._dockerSecretDef.metadata.name).catch(logError);
+    this._tokenSecretDef &&
+      k8s.deleteSecret(this._tokenSecretDef.metadata.name).catch(logError);
   }
 
   getUpdate() {
@@ -388,11 +495,17 @@ class AddOns {
     if (this._configSecretDef) {
       update.configSecretDef = JSON.stringify(this._configSecretDef);
     }
+    if (this._userExtensionSecretDef) {
+      update.userExtensionSecretDef = JSON.stringify(this._userExtensionSecretDef);
+    }
     if (this._priorityClassDef) {
       update.priorityClassDef = JSON.stringify(this._priorityClassDef);
     }
     if (this._dockerSecretDef) {
       update.dockerSecretDef = JSON.stringify(this._dockerSecretDef);
+    }
+    if (this._tokenSecretDef) {
+      update.tokenSecretDef = JSON.stringify(this._tokenSecretDef);
     }
     return update;
   }

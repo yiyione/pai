@@ -7,6 +7,7 @@ cluster:
     data-path: "/datastorage"
     qos-switch: "{{ env["cfg"]["qos-switch"] | default('false') }}"
     docker-data-root: "{{ env['cfg']['docker_data_root'] | default('/mnt/docker') }}"
+    marketplace: "{{ env["cfg"]["enable_marketplace"] | default('false') }}"
 
   # the docker registry to store docker images that contain system services like frameworklauncher, hadoop, etc.
   docker-registry:
@@ -16,22 +17,47 @@ cluster:
     # if the registry is hub.docker, please fill this value with docker.io
     domain: {{ env["cfg"]['docker_registry_domain'] | default('docker.io') }}
     # If the docker registry doesn't require authentication, please comment username and password
-    {% if "docker_registry_username" in env["cfg"] %}
+    {%- if "docker_registry_username" in env["cfg"] %}
     username: {{ env["cfg"]["docker_registry_username"] }}
-    {% else %}
+    {%- else %}
     #username: <username>
-    {% endif %}
-    {% if "docker_registry_password" in env["cfg"] %}
+    {%- endif %}
+    {%- if "docker_registry_password" in env["cfg"] %}
     password: {{ env["cfg"]["docker_registry_password"] }}
-    {% else %}
+    {%- else %}
     #password: <password>
-    {% endif %}
+    {%- endif %}
 
     tag: {{ env["cfg"]['docker_image_tag'] }}
 
     # The name of the secret in kubernetes will be created in your cluster
     # Must be lower case, e.g., regsecret.
     secret-name: pai-secret
+
+{% if env["cfg"]["enable_docker_cache"]|default(false) is sameas true %}
+docker-cache:
+  enabled: {{ env["cfg"]["enable_docker_cache"] }}
+  {%- if "docker_cache_storage_backend" in env["cfg"] %}
+  storage_backend: {{ env["cfg"]["docker_cache_storage_backend"]}}
+    {%- if env["cfg"]["docker_cache_storage_backend"] == "azure" %}
+  azure_account_name: {{ env["cfg"]["docker_cache_azure_account_name"] }}
+  azure_account_key: {{ env["cfg"]["docker_cache_azure_account_key"] }}
+      {%- if env["cfg"]["docker_cache_azure_container_name"] %}
+  azure_container_name: {{ env["cfg"]["docker_cache_azure_container_name"] }}
+      {%- endif %}
+    {%- elif env["cfg"]["docker_cache_storage_backend"] == "filesystem" and env["cfg"]["docker_cache_fs_mount_path"]%}
+  fs_mount_path: {{ env["cfg"]["docker_cache_fs_mount_path"]}}
+    {%- else %}
+    {%- endif %}
+  {%- endif %}
+  {%- if "docker_cache_remote_url" in env["cfg"] %}
+  remote_url: {{ env["cfg"]["docker_cache_remote_url"] }}
+  {%- endif %}
+  {%- if "docker_cache_registry_htpasswd" in env["cfg"] %}
+  registry-htpasswd: {{ env["cfg"]["docker_cache_registry_htpasswd"] }}
+  {%- endif %}
+{%- else %}
+{%- endif %}
 
 
 rest-server:
@@ -187,10 +213,10 @@ authentication:
 # if you want to enable alert-handler actions, uncomment following lines and fill the right values.
 # alert-manager:
 #   port: 9093 # optional, do not modify this if you do not want to change the port alert-manager is listening on
+#   pai-bearer-token: 'your-application-token-for-pai-rest-server'
 #   alert-handler: # alert-handler will only be enabled when this field is not empty
 #     port: 9095 # optional, do not modify this if you do not want to change the port alert-handler is listening on
 #     log-level: "info" # optional
-#     pai-bearer-token: 'your-application-token-for-pai-rest-server'
 #     email-configs: # email-notification will only be enabled when this field is not empty
 #       admin-receiver: addr-of-admin-receiver@example.com
 #       smtp-host: smtp.office365.com
@@ -198,6 +224,9 @@ authentication:
 #       smtp-from: alert-sender@example.com
 #       smtp-auth-username: alert-sender@example.com
 #       smtp-auth-password: password-for-alert-sender
+#   cluster-utilization: # cluster-utilization is a k8s CronJob which reports the GPU utilization of the cluster
+#     # for schedule syntex, refer to https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#cron-schedule-syntax
+#     schedule: "0 0 * * *" # daily report at UTC 00:00
 #   customized-routes:
 #     routes:
 #     - receiver: pai-email-admin-user-and-stop-job
@@ -205,15 +234,15 @@ authentication:
 #         alertname: PAIJobGpuPercentLowerThan0_3For1h
 #   customized-receivers: # receivers are combination of several actions
 #   - name: "pai-email-admin-user-and-stop-job"
-#     actions: 
+#     actions:
 #       # the email template for `email-admin` and `email-user `can be chosen from ['general-template', 'kill-low-efficiency-job-alert']
 #       # if no template specified, 'general-template' will be used.
 #       email-admin:
-#       email-user:  
+#       email-user:
 #         template: 'kill-low-efficiency-job-alert'
 #       stop-jobs: # no parameters required for stop-jobs action
 #       tag-jobs:
-#         tags: 
+#         tags:
 #         - 'stopped-by-alert-manager'
 
 # uncomment following if you want to customize prometheus

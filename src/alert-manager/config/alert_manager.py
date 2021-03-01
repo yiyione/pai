@@ -64,8 +64,12 @@ class AlertManager(object):
             result["alert-handler"]["email-configs"]["templates"] = self.get_email_templates()
 
         # check if `pai-bearer-token` is properly configured
-        if result.get("alert-handler") is not None and \
+        if result.get("pai-bearer-token") is not None:
+            token_configured = True
+        # legacy: to be compatible with pai version <= v1.5
+        elif result.get("alert-handler") is not None and \
             result["alert-handler"].get("pai-bearer-token") is not None:
+            result["pai-bearer-token"] = result["alert-handler"]["pai-bearer-token"]
             token_configured = True
         else:
             token_configured = False
@@ -81,6 +85,13 @@ class AlertManager(object):
             result["actions-available"].extend(["stop-jobs", "tag-jobs"])
         else:
             result["alert-handler"]["configured"] = False
+
+        if result.get("cluster-utilization") is not None and \
+            result["cluster-utilization"].get("schedule") is not None and \
+            token_configured:
+            result["cluster-utilization"]["configured"] = True
+        else:
+            result["cluster-utilization"]["configured"] = False
 
         result["host"] = self.get_master_ip()
         result["url"] = "http://{0}:{1}".format(self.get_master_ip(), result["port"])
