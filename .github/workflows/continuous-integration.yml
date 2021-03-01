@@ -250,7 +250,7 @@ jobs:
         
     - name: Build images
       run: |
-        docker exec -i $(dev_box_name) /bin/bash << EOF_DEV_BOX
+        docker exec -i dev-box /bin/bash << EOF_DEV_BOX
         cd /pai
         ./build/pai_build.py build -c /cluster-configuration/
         EOF_DEV_BOX
